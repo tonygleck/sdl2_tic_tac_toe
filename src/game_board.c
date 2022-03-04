@@ -1,5 +1,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -157,26 +158,24 @@ static GAME_OUTCOME evaluate_board_state(BOARD_INFO* board_info)
 
 static void render_x_player(BOARD_INFO* board_info, uint8_t row, uint8_t col, const SDL_Color* color)
 {
-    const float half_box_side = min_value(board_info->cell_width, board_info->cell_height) * 0.25;
-    const float center_x = board_info->cell_width * 0.5 + col * board_info->cell_width;
-    const float center_y = board_info->cell_height * 0.5 + row * board_info->cell_height;
+    const float half_box_side = (float)(min_value(board_info->cell_width, board_info->cell_height) * 0.25);
+    const float center_x = (float)(board_info->cell_width * 0.5 + col * board_info->cell_width);
+    const float center_y = (float)(board_info->cell_height * 0.5 + row * board_info->cell_height);
 
-    render_draw_thick_line(board_info->renderer, center_x - half_box_side,
-                  center_y - half_box_side, center_x + half_box_side,
-                  center_y + half_box_side, 10, color);
-    render_draw_thick_line(board_info->renderer,
-                  center_x + half_box_side, center_y - half_box_side,
-                  center_x - half_box_side, center_y + half_box_side, 10, color);
+    render_draw_thick_line(board_info->renderer, (int16_t)(center_x - half_box_side),
+        (int16_t)(center_y - half_box_side), (int16_t)(center_x + half_box_side), (int16_t)(center_y + half_box_side), 10, color);
+    render_draw_thick_line(board_info->renderer, (int16_t)(center_x + half_box_side),
+        (int16_t)(center_y - half_box_side), (int16_t)(center_x - half_box_side), (int16_t)(center_y + half_box_side), 10, color);
 }
 
 static void render_y_player(BOARD_INFO* board_info, uint8_t row, uint8_t col, const SDL_Color* color)
 {
-    const float half_box_side = min_value(board_info->cell_width, board_info->cell_height) * 0.25;
-    const float center_x = board_info->cell_width * 0.5 + col * board_info->cell_width;
-    const float center_y = board_info->cell_height * 0.5 + row * board_info->cell_height;
+    const float half_box_side = (float)(min_value(board_info->cell_width, board_info->cell_height) * 0.25);
+    const float center_x = (float)(board_info->cell_width * 0.5 + col * board_info->cell_width);
+    const float center_y = (float)(board_info->cell_height * 0.5 + row * board_info->cell_height);
 
-    render_draw_filled_circle(board_info->renderer, center_x, center_y, half_box_side + 5, color);
-    render_draw_filled_circle(board_info->renderer, center_x, center_y, half_box_side - 5, &BLACK_COLOR);
+    render_draw_filled_circle(board_info->renderer, (int16_t)center_x, (int16_t)center_y, (int16_t)(half_box_side + 5), color);
+    render_draw_filled_circle(board_info->renderer, (int16_t)center_x, (int16_t)center_y, (int16_t)(half_box_side - 5), &BLACK_COLOR);
 }
 
 static void render_status_area(BOARD_INFO* board_info)
@@ -190,9 +189,9 @@ static void render_status_area(BOARD_INFO* board_info)
 
 static void render_players(BOARD_INFO* board_info)
 {
-    for (int index = 0; index < ROW_COL_COUNT; index++)
+    for (uint8_t index = 0; index < ROW_COL_COUNT; index++)
     {
-        for (int inner = 0; inner < ROW_COL_COUNT; inner++)
+        for (uint8_t inner = 0; inner < ROW_COL_COUNT; inner++)
         {
             switch (board_info->game_board[index][inner])
             {
@@ -224,10 +223,10 @@ static void render_grid(BOARD_INFO* board_info, const SDL_Color* color)
 static void render_winner(BOARD_INFO* board_info)
 {
     const SDL_Color* line_color = board_info->current_player == CELL_X_PLAYER ? &PLAYER_X_COLOR : &PLAYER_O_COLOR;
-    int xpos;
-    int ypos;
-    int endx;
-    int endy;
+    int16_t xpos;
+    int16_t ypos;
+    int16_t endx;
+    int16_t endy;
     switch (board_info->game_outcome)
     {
         case OUTCOME_WIN_COL_0:
@@ -339,12 +338,15 @@ BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_heigh
                     break;
                 }
             }
-            result->screen_width = screen_width;
-            result->screen_height = screen_height - BOTTOM_BORDER;
-            result->cell_width = result->screen_width / ROW_COL_COUNT;
-            result->cell_height = result->screen_height / ROW_COL_COUNT;
-            result->renderer = renderer;
-            reset_game(result);
+            if (result != NULL)
+            {
+                result->screen_width = screen_width;
+                result->screen_height = screen_height - BOTTOM_BORDER;
+                result->cell_width = result->screen_width / ROW_COL_COUNT;
+                result->cell_height = result->screen_height / ROW_COL_COUNT;
+                result->renderer = renderer;
+                reset_game(result);
+            }
         }
     }
     return result;
@@ -405,9 +407,8 @@ void game_board_click(BOARD_INFO_HANDLE handle, const POS_INFO* pos)
         }
         else
         {
-            uint8_t row = pos->y / handle->cell_height;
-            uint8_t col = pos->x / handle->cell_width;
-
+            uint8_t row = (uint8_t)(pos->y / handle->cell_height);
+            uint8_t col = (uint8_t)(pos->x / handle->cell_width);
             mark_board_play(handle, row, col);
         }
     }
