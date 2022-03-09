@@ -52,6 +52,7 @@ set(source_c_files
     ${PROJECT_SOURCE_DIR}/src/computer_player.c
     ${PROJECT_SOURCE_DIR}/src/game_board.c
     ${PROJECT_SOURCE_DIR}/src/main.c
+    ${PROJECT_SOURCE_DIR}/src/manual_player.c
     ${PROJECT_SOURCE_DIR}/src/sdl2_renderer.c
     ${PROJECT_SOURCE_DIR}/src/sdl2_win.c
 )
@@ -60,6 +61,8 @@ set(source_c_files
 set(source_h_files
     ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/computer_player.h
     ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/game_board.h
+    ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/manual_player.h
+    ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/player_mgr.h
     ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/sdl2_renderer.h
     ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/sdl2_win.h
 )

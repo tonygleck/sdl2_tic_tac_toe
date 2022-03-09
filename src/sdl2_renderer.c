@@ -154,7 +154,7 @@ void render_process_game_loop(RENDERER_INFO_HANDLE handle, RENDER_WIN_FUNC rende
                     default:
                         if (win_event != NULL)
                         {
-                            win_event(user_ctx, event.type, &event.button);
+                            win_event(user_ctx, &event, &event.button);
                         }
                         break;
                 }

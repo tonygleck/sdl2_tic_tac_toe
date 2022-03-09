@@ -16,7 +16,7 @@ extern "C" {
 
 typedef struct SDL_WINDOW_INFO_TAG* SDL_WIN_HANDLE;
 
-typedef void(*PROCESS_WIN_EVENT_FUNC)(void* user_ctx, uint16_t event, void* data);
+typedef void(*PROCESS_WIN_EVENT_FUNC)(void* user_ctx, SDL_Event* event, void* data);
 typedef void(*RENDER_WIN_FUNC)(void* user_ctx);
 
 
