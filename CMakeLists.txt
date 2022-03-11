@@ -52,6 +52,7 @@ set(source_c_files
     ${PROJECT_SOURCE_DIR}/src/computer_player.c
     ${PROJECT_SOURCE_DIR}/src/game_board.c
     ${PROJECT_SOURCE_DIR}/src/main.c
+    ${PROJECT_SOURCE_DIR}/src/manual_player.c
     ${PROJECT_SOURCE_DIR}/src/sdl2_renderer.c
     ${PROJECT_SOURCE_DIR}/src/sdl2_win.c
 )
@@ -60,6 +61,8 @@ set(source_c_files
 set(source_h_files
     ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/computer_player.h
     ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/game_board.h
+    ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/manual_player.h
+    ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/player_mgr.h
     ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/sdl2_renderer.h
     ${PROJECT_SOURCE_DIR}/inc/sdl2_tic_tac_toe/sdl2_win.h
 )
@@ -70,7 +73,7 @@ include_directories(${PROJECT_SOURCE_DIR}/inc)
 add_executable(sdl2_tic_tac_toe ${source_c_files} ${source_h_files})
 
 # TODO: Add any libs that you need
-target_link_libraries(sdl2_tic_tac_toe SDL2 SDL2_gfx)
+target_link_libraries(sdl2_tic_tac_toe lib-util-c SDL2 SDL2_gfx)
 # if (UNIX)
 #     target_link_libraries(sdl2_tic_tac_toe cord_berkley)
 # elseif(WIN32)

@@ -24,20 +24,6 @@ const SDL_Color PLAYER_X_COLOR = { .r = 255, .g = 50, .b = 50, .a = 255 };
 const SDL_Color PLAYER_O_COLOR = { .r = 50, .g = 100, .b = 255, .a = 255 };
 const SDL_Color BLACK_COLOR = { .r = 0, .g = 0, .b = 0, .a = 255 };
 
-typedef enum GAME_OUTCOME_TAG
-{
-    OUTCOME_WIN_ROW_0,
-    OUTCOME_WIN_ROW_1,
-    OUTCOME_WIN_ROW_2,
-    OUTCOME_WIN_COL_0,
-    OUTCOME_WIN_COL_1,
-    OUTCOME_WIN_COL_2,
-    OUTCOME_WIN_DIAG_1,
-    OUTCOME_WIN_DIAG_2,
-    OUTCOME_GAME_TIE,
-    OUTCOME_NO_RESULT
-} GAME_OUTCOME;
-
 typedef struct BOARD_INFO_TAG
 {
     BOARD_CELL** game_board;
@@ -46,24 +32,25 @@ typedef struct BOARD_INFO_TAG
     uint16_t cell_width;
     uint16_t cell_height;
     RENDERER_INFO_HANDLE renderer;
-    BOARD_CELL current_player;
     uint8_t turn_count;
     GAME_OUTCOME game_outcome;
+    GAME_RESET_CLICK reset_click;
+    void* reset_user_ctx;
 } BOARD_INFO;
 
-static GAME_OUTCOME evaluate_diagonal_win(BOARD_INFO* board_info)
+static GAME_OUTCOME evaluate_diagonal_win(BOARD_INFO* board_info, BOARD_CELL player_type)
 {
     GAME_OUTCOME result;
-    if (((board_info->game_board[0][0] == board_info->current_player) &&
-        (board_info->game_board[1][1] == board_info->current_player) &&
-        (board_info->game_board[2][2] == board_info->current_player)))
+    if (((board_info->game_board[0][0] == player_type) &&
+        (board_info->game_board[1][1] == player_type) &&
+        (board_info->game_board[2][2] == player_type)))
     {
         result = OUTCOME_WIN_DIAG_1;
     }
     else if (
-        ((board_info->game_board[0][2] == board_info->current_player) &&
-        (board_info->game_board[1][1] == board_info->current_player) &&
-        (board_info->game_board[2][0] == board_info->current_player)) )
+        ((board_info->game_board[0][2] == player_type) &&
+        (board_info->game_board[1][1] == player_type) &&
+        (board_info->game_board[2][0] == player_type)) )
     {
         result = OUTCOME_WIN_DIAG_2;
     }
@@ -74,7 +61,7 @@ static GAME_OUTCOME evaluate_diagonal_win(BOARD_INFO* board_info)
     return result;
 }
 
-static GAME_OUTCOME evaluate_horizontal_win(BOARD_INFO* board_info)
+static GAME_OUTCOME evaluate_horizontal_win(BOARD_INFO* board_info, BOARD_CELL player_type)
 {
     GAME_OUTCOME current_col = OUTCOME_WIN_ROW_0;
     bool winner_found = false;
@@ -82,7 +69,7 @@ static GAME_OUTCOME evaluate_horizontal_win(BOARD_INFO* board_info)
     {
         for (int inner = 0; inner < ROW_COL_COUNT; inner++)
         {
-            if (board_info->game_board[index][inner] == board_info->current_player)
+            if (board_info->game_board[index][inner] == player_type)
             {
                 winner_found = true;
             }
@@ -102,7 +89,7 @@ static GAME_OUTCOME evaluate_horizontal_win(BOARD_INFO* board_info)
     return winner_found ? current_col : OUTCOME_NO_RESULT;
 }
 
-static GAME_OUTCOME evaluate_vertical_win(BOARD_INFO* board_info)
+static GAME_OUTCOME evaluate_vertical_win(BOARD_INFO* board_info, BOARD_CELL player_type)
 {
     GAME_OUTCOME current_row = OUTCOME_WIN_COL_0;
     bool winner_found = false;
@@ -110,7 +97,7 @@ static GAME_OUTCOME evaluate_vertical_win(BOARD_INFO* board_info)
     {
         for (int inner = 0; inner < ROW_COL_COUNT; inner++)
         {
-            if (board_info->game_board[inner][index] == board_info->current_player)
+            if (board_info->game_board[inner][index] == player_type)
             {
                 winner_found = true;
             }
@@ -130,13 +117,13 @@ static GAME_OUTCOME evaluate_vertical_win(BOARD_INFO* board_info)
     return winner_found ? current_row : OUTCOME_NO_RESULT;
 }
 
-static GAME_OUTCOME evaluate_board_state(BOARD_INFO* board_info)
+static GAME_OUTCOME evaluate_board_state(BOARD_INFO* board_info, BOARD_CELL player_type)
 {
     GAME_OUTCOME result;
     // Check winning combinations
-    if ((result = evaluate_vertical_win(board_info)) != OUTCOME_NO_RESULT ||
-        (result = evaluate_horizontal_win(board_info)) != OUTCOME_NO_RESULT ||
-        (result = evaluate_diagonal_win(board_info)) != OUTCOME_NO_RESULT
+    if ((result = evaluate_vertical_win(board_info, player_type)) != OUTCOME_NO_RESULT ||
+        (result = evaluate_horizontal_win(board_info, player_type)) != OUTCOME_NO_RESULT ||
+        (result = evaluate_diagonal_win(board_info, player_type)) != OUTCOME_NO_RESULT
        )
     {
         // We have a Winner
@@ -220,9 +207,9 @@ static void render_grid(BOARD_INFO* board_info, const SDL_Color* color)
     }
 }
 
-static void render_winner(BOARD_INFO* board_info)
+static void render_winner(BOARD_INFO* board_info, BOARD_CELL player_type)
 {
-    const SDL_Color* line_color = board_info->current_player == CELL_X_PLAYER ? &PLAYER_X_COLOR : &PLAYER_O_COLOR;
+    const SDL_Color* line_color = player_type == CELL_X_PLAYER ? &PLAYER_X_COLOR : &PLAYER_O_COLOR;
     int16_t xpos;
     int16_t ypos;
     int16_t endx;
@@ -277,18 +264,16 @@ static void render_winner(BOARD_INFO* board_info)
     render_draw_thick_line(board_info->renderer, xpos, ypos, endx, endy, WIN_LINE_THICKNESS, line_color);
 }
 
-static void mark_board_play(BOARD_INFO* board_info, int row, int col)
+static GAME_OUTCOME mark_board_play(BOARD_INFO* board_info, int row, int col, BOARD_CELL player_type)
 {
     if (board_info->game_outcome == OUTCOME_NO_RESULT)
     {
         if (board_info->game_board[row][col] == CELL_EMPTY)
         {
             board_info->turn_count++;
-            board_info->game_board[row][col] = board_info->current_player;
-            if (evaluate_board_state(board_info) == OUTCOME_NO_RESULT)
+            board_info->game_board[row][col] = player_type;
+            if (evaluate_board_state(board_info, player_type) == OUTCOME_NO_RESULT)
             {
-                // Switch Player
-                board_info->current_player = (board_info->current_player == CELL_X_PLAYER) ? CELL_0_PLAYER : CELL_X_PLAYER;
             }
         }
         else
@@ -296,11 +281,11 @@ static void mark_board_play(BOARD_INFO* board_info, int row, int col)
             // Add user error statment
         }
     }
+    return board_info->game_outcome;
 }
 
 static void reset_game(BOARD_INFO* board_info)
 {
-    board_info->current_player = CELL_X_PLAYER;
     board_info->turn_count = 0;
     board_info->game_outcome = OUTCOME_NO_RESULT;
     for (size_t index = 0; index < ROW_COL_COUNT; index++)
@@ -312,7 +297,7 @@ static void reset_game(BOARD_INFO* board_info)
     }
 }
 
-BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_height, RENDERER_INFO_HANDLE renderer)
+BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_height, RENDERER_INFO_HANDLE renderer, GAME_RESET_CLICK reset_click, void* user_ctx)
 {
     BOARD_INFO* result = (BOARD_INFO*)malloc(sizeof(BOARD_INFO));
     if (result == NULL)
@@ -346,6 +331,8 @@ BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_heigh
                 result->cell_height = result->screen_height / ROW_COL_COUNT;
                 result->renderer = renderer;
                 reset_game(result);
+                result->reset_click = reset_click;;
+                result->reset_user_ctx = user_ctx;
             }
         }
     }
@@ -366,7 +353,7 @@ void game_board_destroy(BOARD_INFO_HANDLE handle)
     }
 }
 
-void game_board_render(BOARD_INFO_HANDLE handle, const SDL_Color* color)
+void game_board_render(BOARD_INFO_HANDLE handle, const SDL_Color* color, BOARD_CELL player_type)
 {
     if (handle != NULL)
     {
@@ -375,20 +362,26 @@ void game_board_render(BOARD_INFO_HANDLE handle, const SDL_Color* color)
         render_players(handle);
         if (handle->game_outcome != OUTCOME_NO_RESULT)
         {
-            render_winner(handle);
+            render_winner(handle, player_type);
         }
     }
 }
 
-void game_board_play(BOARD_INFO_HANDLE handle, int row, int col)
+GAME_OUTCOME game_board_play(BOARD_INFO_HANDLE handle, uint8_t row, uint8_t col, BOARD_CELL player_type)
 {
+    GAME_OUTCOME result;
     if (handle != NULL)
     {
-        mark_board_play(handle, row, col);
+        result = mark_board_play(handle, row, col, player_type);
     }
+    else
+    {
+        result = OUTCOME_NO_RESULT;
+    }
+    return result;
 }
 
-void game_board_click(BOARD_INFO_HANDLE handle, const POS_INFO* pos)
+GAME_OUTCOME game_board_click(BOARD_INFO_HANDLE handle, const POS_INFO* pos, BOARD_CELL player_type)
 {
     if (handle != NULL)
     {
@@ -402,16 +395,23 @@ void game_board_click(BOARD_INFO_HANDLE handle, const POS_INFO* pos)
                 {
                     // Reset the screen
                     reset_game(handle);
+                    handle->reset_click(handle->reset_user_ctx);
                 }
             }
+            handle->game_outcome = OUTCOME_NO_RESULT;
         }
         else
         {
             uint8_t row = (uint8_t)(pos->y / handle->cell_height);
             uint8_t col = (uint8_t)(pos->x / handle->cell_width);
-            mark_board_play(handle, row, col);
+            handle->game_outcome = mark_board_play(handle, row, col, player_type);
         }
     }
+    else
+    {
+        handle->game_outcome = OUTCOME_NO_RESULT;
+    }
+    return handle->game_outcome;
 }
 
 BOARD_CELL** game_board_get_board(BOARD_INFO_HANDLE handle)
