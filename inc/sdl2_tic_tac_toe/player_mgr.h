@@ -43,6 +43,7 @@ typedef void(*PLAYER_DESTROY)(PLAYER_MGR_HANDLE player_handle);
 typedef void(*PLAYER_TAKE_TURN)(PLAYER_MGR_HANDLE player_handle, PLAYER_TURN_COMPLETE turn_complete, void* user_ctx);
 typedef void(*PLAYER_PROCESS_CLICK)(PLAYER_MGR_HANDLE player_handle, const POS_INFO* pos);
 typedef PLAYER_TYPE(*PLAYER_GET_TYPE)(void);
+typedef void(*PLAYER_RESET)(PLAYER_MGR_HANDLE player_handle);
 
 typedef struct PLAYER_INTERFACE_DESC_TAG
 {
@@ -51,13 +52,14 @@ typedef struct PLAYER_INTERFACE_DESC_TAG
     PLAYER_TAKE_TURN player_take_turn;
     PLAYER_PROCESS_CLICK player_process_click;
     PLAYER_GET_TYPE player_get_type;
+    PLAYER_RESET player_reset;
 } PLAYER_INTERFACE_DESC;
 
-MOCKABLE_FUNCTION(, PLAYER_MGR_HANDLE, player_mgr_create_player, BOARD_INFO_HANDLE, board_info, BOARD_CELL, player_type);
+/*MOCKABLE_FUNCTION(, PLAYER_MGR_HANDLE, player_mgr_create_player, BOARD_INFO_HANDLE, board_info, BOARD_CELL, player_type);
 MOCKABLE_FUNCTION(, void, player_mgr_destroy_player, PLAYER_MGR_HANDLE, handle);
 
 MOCKABLE_FUNCTION(, CELL_LOCATION, player_mgr_take_turn, PLAYER_MGR_HANDLE, handle);
-MOCKABLE_FUNCTION(, CELL_LOCATION, player_mgr_process_click, PLAYER_MGR_HANDLE, handle, const POS_INFO*, pos);
+MOCKABLE_FUNCTION(, CELL_LOCATION, player_mgr_process_click, PLAYER_MGR_HANDLE, handle, const POS_INFO*, pos);*/
 
 #ifdef __cplusplus
 }

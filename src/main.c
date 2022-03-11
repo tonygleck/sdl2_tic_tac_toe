@@ -41,6 +41,15 @@ typedef struct TIC_TAC_TOE_INFO_TAG
     bool accept_input;
 } TIC_TAC_TOE_INFO;
 
+static void game_reset_click(void* user_ctx)
+{
+    TIC_TAC_TOE_INFO* tic_info = (TIC_TAC_TOE_INFO*)user_ctx;
+    for (size_t index = 0; index < 2; index++)
+    {
+        tic_info->player_list[index].player_interface->player_reset(tic_info->player_list[index].player);
+    }
+}
+
 static void process_turn_complete(GAME_OUTCOME outcome, void* user_ctx)
 {
     TIC_TAC_TOE_INFO* tic_info = (TIC_TAC_TOE_INFO*)user_ctx;
@@ -116,7 +125,7 @@ static int create_game_window(TIC_TAC_TOE_INFO* tic_info)
         }
         else
         {
-            if ((tic_info->board = game_board_create(SCREEN_WIDTH, SCREEN_HEIGHT, tic_info->renderer_info)) == NULL)
+            if ((tic_info->board = game_board_create(SCREEN_WIDTH, SCREEN_HEIGHT, tic_info->renderer_info, game_reset_click, tic_info)) == NULL)
             {
                 printf("failure create game board\n");
                 result = EXIT_FAILURE;
@@ -152,7 +161,7 @@ static int create_players(TIC_TAC_TOE_INFO* tic_info)
     }
     else
     {
-        tic_info->player_list[PLAYER_O].player_interface = manual_get_interface_description();//computer_get_interface_description();
+        tic_info->player_list[PLAYER_O].player_interface = computer_get_interface_description();
         tic_info->player_list[PLAYER_O].player_type = CELL_0_PLAYER;
         tic_info->player_list[PLAYER_O].player = tic_info->player_list[PLAYER_O].player_interface->player_create(tic_info->board, CELL_0_PLAYER);
         if (tic_info->player_list[PLAYER_O].player == NULL)

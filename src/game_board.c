@@ -34,6 +34,8 @@ typedef struct BOARD_INFO_TAG
     RENDERER_INFO_HANDLE renderer;
     uint8_t turn_count;
     GAME_OUTCOME game_outcome;
+    GAME_RESET_CLICK reset_click;
+    void* reset_user_ctx;
 } BOARD_INFO;
 
 static GAME_OUTCOME evaluate_diagonal_win(BOARD_INFO* board_info, BOARD_CELL player_type)
@@ -295,7 +297,7 @@ static void reset_game(BOARD_INFO* board_info)
     }
 }
 
-BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_height, RENDERER_INFO_HANDLE renderer)
+BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_height, RENDERER_INFO_HANDLE renderer, GAME_RESET_CLICK reset_click, void* user_ctx)
 {
     BOARD_INFO* result = (BOARD_INFO*)malloc(sizeof(BOARD_INFO));
     if (result == NULL)
@@ -329,6 +331,8 @@ BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_heigh
                 result->cell_height = result->screen_height / ROW_COL_COUNT;
                 result->renderer = renderer;
                 reset_game(result);
+                result->reset_click = reset_click;;
+                result->reset_user_ctx = user_ctx;
             }
         }
     }
@@ -379,7 +383,6 @@ GAME_OUTCOME game_board_play(BOARD_INFO_HANDLE handle, uint8_t row, uint8_t col,
 
 GAME_OUTCOME game_board_click(BOARD_INFO_HANDLE handle, const POS_INFO* pos, BOARD_CELL player_type)
 {
-    GAME_OUTCOME result;
     if (handle != NULL)
     {
         if (pos->y > handle->screen_height)
@@ -392,22 +395,23 @@ GAME_OUTCOME game_board_click(BOARD_INFO_HANDLE handle, const POS_INFO* pos, BOA
                 {
                     // Reset the screen
                     reset_game(handle);
+                    handle->reset_click(handle->reset_user_ctx);
                 }
             }
-            result = OUTCOME_NO_RESULT;
+            handle->game_outcome = OUTCOME_NO_RESULT;
         }
         else
         {
             uint8_t row = (uint8_t)(pos->y / handle->cell_height);
             uint8_t col = (uint8_t)(pos->x / handle->cell_width);
-            result = mark_board_play(handle, row, col, player_type);
+            handle->game_outcome = mark_board_play(handle, row, col, player_type);
         }
     }
     else
     {
-        result = OUTCOME_NO_RESULT;
+        handle->game_outcome = OUTCOME_NO_RESULT;
     }
-    return result;
+    return handle->game_outcome;
 }
 
 BOARD_CELL** game_board_get_board(BOARD_INFO_HANDLE handle)

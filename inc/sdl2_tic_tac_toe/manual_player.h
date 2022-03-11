@@ -18,6 +18,7 @@ MOCKABLE_FUNCTION(, void, manual_player_destroy, PLAYER_MGR_HANDLE, handle);
 MOCKABLE_FUNCTION(, void, manual_player_take_turn, PLAYER_MGR_HANDLE, handle, PLAYER_TURN_COMPLETE, turn_complete, void*, user_ctx);
 MOCKABLE_FUNCTION(, void, manual_process_click, PLAYER_MGR_HANDLE, player_handle, const POS_INFO*, pos);
 MOCKABLE_FUNCTION(, PLAYER_TYPE, manual_player_get_type);
+MOCKABLE_FUNCTION(, void, manual_player_reset, PLAYER_MGR_HANDLE, player_handle);
 
 MOCKABLE_FUNCTION(, const PLAYER_INTERFACE_DESC*, manual_get_interface_description);
 

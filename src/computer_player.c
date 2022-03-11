@@ -5,9 +5,12 @@
 #include <stdint.h>
 
 #include "lib-util-c/sys_debug_shim.h"
+#include "lib-util-c/thread_mgr.h"
 
 #include "sdl2_tic_tac_toe/game_board.h"
 #include "sdl2_tic_tac_toe/computer_player.h"
+
+#define TURN_DELAY      1000
 
 typedef struct COMPUTER_PLAYER_TAG
 {
@@ -91,28 +94,28 @@ static CELL_LOCATION convert_row_col_to_location(uint8_t row, uint8_t col)
     return result;
 }
 
-static CELL_LOCATION check_col_row_scenarios(BOARD_CELL** board, uint8_t row, uint8_t col)
+static CELL_LOCATION check_col_row_scenarios(BOARD_CELL** board, uint8_t row, uint8_t col, BOARD_CELL check_type)
 {
     CELL_LOCATION result = CELL_LOC_NA;
     // Test the Vertical
     switch (row)
     {
         case 0:
-            if (board[1][col] == board[row][col])
+            if (board[1][col] == check_type && board[2][col] == CELL_EMPTY)
                 result = convert_row_col_to_location(2, col);
-            else if (board[2][col] == board[row][col])
+            else if (board[2][col] == check_type && board[1][col] == CELL_EMPTY)
                 result = convert_row_col_to_location(1, col);
             break;
         case 1:
-            if (board[0][col] == board[row][col])
+            if (board[0][col] == check_type && board[2][col] == CELL_EMPTY)
                 result = convert_row_col_to_location(2, col);
-            else if (board[2][col] == board[row][col])
+            else if (board[2][col] == check_type && board[0][col] == CELL_EMPTY)
                 result = convert_row_col_to_location(0, col);
             break;
         case 2:
-            if (board[0][col] == board[row][col])
+            if (board[0][col] == check_type && board[1][col] == CELL_EMPTY)
                 result = convert_row_col_to_location(1, col);
-            else if (board[1][col] == board[row][col])
+            else if (board[1][col] == check_type && board[0][col] == CELL_EMPTY)
                 result = convert_row_col_to_location(0, col);
             break;
     }
@@ -122,46 +125,46 @@ static CELL_LOCATION check_col_row_scenarios(BOARD_CELL** board, uint8_t row, ui
         switch (col)
         {
             case 0:
-                if (board[row][1] == board[row][col])
+                if (board[row][1] == check_type && board[row][2] == CELL_EMPTY)
                     result = convert_row_col_to_location(row, 2);
-                else if (board[row][2] == board[row][col])
+                else if (board[row][2] == check_type && board[row][1] == CELL_EMPTY)
                     result = convert_row_col_to_location(row, 1);
                 break;
             case 1:
-                if (board[row][0] == board[row][col])
+                if (board[row][0] == check_type && board[row][2] == CELL_EMPTY)
                     result = convert_row_col_to_location(row, 2);
-                else if (board[row][2] == board[row][col])
+                else if (board[row][2] == check_type && board[row][0] == CELL_EMPTY)
                     result = convert_row_col_to_location(row, 0);
                 break;
             case 2:
-                if (board[row][0] == board[row][col])
+                if (board[row][0] == check_type && board[row][1] == CELL_EMPTY)
                     result = convert_row_col_to_location(row, 1);
-                else if (board[row][1] == board[row][col])
+                else if (board[row][1] == check_type && board[row][0] == CELL_EMPTY)
                     result = convert_row_col_to_location(row, 0);
                 break;
         }
         if (result == CELL_LOC_NA)
         {
             // Check Diagonal
-            if ((row == 0 && col == 0) && (board[1][1] == board[row][col] || board[2][2] == board[row][col]) )
+            if ((row == 0 && col == 0) && (board[1][1] == check_type || board[2][2] == check_type) )
             {
-                if (board[1][1] == board[row][col])
+                if (board[1][1] == check_type && board[2][2] == CELL_EMPTY)
                     result = convert_row_col_to_location(2, 2);
-                else
+                else if (board[1][1] == CELL_EMPTY)
                     result = convert_row_col_to_location(1, 1);
             }
-            else if ((row == 0 && col == 2) && (board[1][1] == board[row][col] || board[2][0] == board[row][col]))
+            else if ((row == 0 && col == 2) && (board[1][1] == check_type || board[2][0] == check_type))
             {
-                if (board[1][1] == board[row][col])
+                if (board[1][1] == check_type && board[2][0] == CELL_EMPTY)
                     result = convert_row_col_to_location(2, 0);
-                else
+                else if (board[1][1] == CELL_EMPTY)
                     result = convert_row_col_to_location(1, 1);
             }
-            else if ((row == 1 && col == 1) && (board[2][2] == board[row][col] || board[2][0] == board[row][col]))
+            else if ((row == 1 && col == 1) && (board[2][2] == check_type || board[2][0] == check_type))
             {
-                if (board[2][2] == board[row][col])
+                if (board[2][2] == check_type && board[0][0] == CELL_EMPTY)
                     result = convert_row_col_to_location(0, 0);
-                else
+                else if (board[0][2] == CELL_EMPTY)
                     result = convert_row_col_to_location(0, 2);
             }
         }
@@ -179,7 +182,7 @@ static CELL_LOCATION check_win_scenarios(COMPUTER_PLAYER* player, BOARD_CELL** b
             // Test only spaces occupied by our player
             if (board[row][col] == player->player_type)
             {
-                result = check_col_row_scenarios(board, row, col);
+                result = check_col_row_scenarios(board, row, col, player->player_type);
             }
         }
     }
@@ -196,7 +199,7 @@ static CELL_LOCATION check_opponent_win(COMPUTER_PLAYER* player, BOARD_CELL** bo
             // Test only spaces occupied by our player
             if (board[row][col] == player->opponent_type)
             {
-                result = check_col_row_scenarios(board, row, col);
+                result = check_col_row_scenarios(board, row, col, player->opponent_type);
             }
         }
     }
@@ -215,6 +218,7 @@ static CELL_LOCATION determine_next_move(COMPUTER_PLAYER* player, BOARD_CELL** b
             if (board[row][col] == CELL_EMPTY) //player->player_type)
             {
                 result = convert_row_col_to_location(row, col);
+                break;
             }
         }
     }
@@ -253,14 +257,6 @@ void computer_player_destroy(PLAYER_MGR_HANDLE handle)
     }
 }
 
-void computer_player_reset(PLAYER_MGR_HANDLE handle)
-{
-    if (handle != NULL)
-    {
-        reset_variables((COMPUTER_PLAYER*)handle);
-    }
-}
-
 void computer_player_take_turn(PLAYER_MGR_HANDLE handle, PLAYER_TURN_COMPLETE turn_complete, void* user_ctx)
 {
     CELL_LOCATION cell_loc;
@@ -268,6 +264,8 @@ void computer_player_take_turn(PLAYER_MGR_HANDLE handle, PLAYER_TURN_COMPLETE tu
     {
         COMPUTER_PLAYER* player = (COMPUTER_PLAYER*)handle;
         player->turn_complete = turn_complete;
+
+        //thread_mgr_sleep(TURN_DELAY);
 
         BOARD_CELL** board = game_board_get_board(player->board_info);
         // See if we can win
@@ -309,13 +307,22 @@ PLAYER_TYPE computer_player_get_type(void)
     return PLAYER_TYPE_COMPUTER;
 }
 
+void computer_player_reset(PLAYER_MGR_HANDLE handle)
+{
+    if (handle != NULL)
+    {
+        reset_variables((COMPUTER_PLAYER*)handle);
+    }
+}
+
 const PLAYER_INTERFACE_DESC computer_player_interface =
 {
     computer_player_create,
     computer_player_destroy,
     computer_player_take_turn,
     computer_process_click,
-    computer_player_get_type
+    computer_player_get_type,
+    computer_player_reset
 };
 
 const PLAYER_INTERFACE_DESC* computer_get_interface_description(void)

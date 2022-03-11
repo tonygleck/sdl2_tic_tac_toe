@@ -166,6 +166,7 @@ void render_process_game_loop(RENDERER_INFO_HANDLE handle, RENDER_WIN_FUNC rende
                 render_win(render_ctx);
             }
             SDL_RenderPresent(handle->renderer);
+            //SDL_Delay(10);
         }
     }
 }

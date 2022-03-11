@@ -45,11 +45,13 @@ typedef enum BOARD_CELL_TAG
 
 typedef struct POS_INFO_TAG
 {
-    uint8_t x;
-    uint8_t y;
+    int32_t x;
+    int32_t y;
 } POS_INFO;
 
-MOCKABLE_FUNCTION(, BOARD_INFO_HANDLE, game_board_create, uint16_t, width, uint16_t, length, RENDERER_INFO_HANDLE, renderer);
+typedef void(*GAME_RESET_CLICK)(void* user_ctx);
+
+MOCKABLE_FUNCTION(, BOARD_INFO_HANDLE, game_board_create, uint16_t, width, uint16_t, length, RENDERER_INFO_HANDLE, renderer, GAME_RESET_CLICK, reset_click, void*, user_ctx);
 MOCKABLE_FUNCTION(, void, game_board_destroy, BOARD_INFO_HANDLE, handle);
 
 MOCKABLE_FUNCTION(, void, game_board_render, BOARD_INFO_HANDLE, handle, const SDL_Color*, color, BOARD_CELL, player_type);

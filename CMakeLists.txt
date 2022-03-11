@@ -73,7 +73,7 @@ include_directories(${PROJECT_SOURCE_DIR}/inc)
 add_executable(sdl2_tic_tac_toe ${source_c_files} ${source_h_files})
 
 # TODO: Add any libs that you need
-target_link_libraries(sdl2_tic_tac_toe SDL2 SDL2_gfx)
+target_link_libraries(sdl2_tic_tac_toe lib-util-c SDL2 SDL2_gfx)
 # if (UNIX)
 #     target_link_libraries(sdl2_tic_tac_toe cord_berkley)
 # elseif(WIN32)

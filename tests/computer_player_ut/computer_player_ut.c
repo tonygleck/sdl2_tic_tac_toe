@@ -32,6 +32,7 @@ static void my_mem_shim_free(void* ptr)
 #define ENABLE_MOCKS
 #include "sdl2_tic_tac_toe/game_board.h"
 #include "lib-util-c/sys_debug_shim.h"
+#include "lib-util-c/thread_mgr.h"
 #undef ENABLE_MOCKS
 
 #include "umock_c/umock_c_prod.h"
@@ -154,6 +155,9 @@ CTEST_SUITE_INITIALIZE()
     CTEST_ASSERT_ARE_EQUAL(int, 0, umocktypes_stdint_register_types(), "umocktypes_stdint_register_types failed");
 
     REGISTER_UMOCK_ALIAS_TYPE(BOARD_INFO_HANDLE, void*);
+    REGISTER_UMOCK_ALIAS_TYPE(PLAYER_TURN_COMPLETE, void*);
+
+    REGISTER_UMOCK_ALIAS_TYPE(BOARD_CELL, int);
 
     REGISTER_GLOBAL_MOCK_HOOK(mem_shim_malloc, my_mem_shim_malloc);
     REGISTER_GLOBAL_MOCK_FAIL_RETURN(mem_shim_malloc, NULL);
@@ -232,7 +236,34 @@ CTEST_FUNCTION(computer_player_take_turn_success)
         CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls(), "computer_player_take_turn_success failure in test %lu on %s", index, g_test_cell_matrix[index].win_direction);
 
         delete_cell_data(test_board_cell);
+        computer_player_reset(player_handle);
     }
+
+    //cleanup
+    computer_player_destroy(player_handle);
+}
+
+CTEST_FUNCTION(computer_player_take_turn_stuck_issue_success)
+{
+    //arrange
+    PLAYER_MGR_HANDLE player_handle = computer_player_create(g_board_info, CELL_X_PLAYER);
+    umock_c_reset_all_calls();
+
+    BOARD_CELL test_cell_board[9] = { CELL_X_PLAYER, CELL_EMPTY, CELL_0_PLAYER, CELL_EMPTY, CELL_EMPTY, CELL_0_PLAYER, CELL_EMPTY, CELL_EMPTY, CELL_X_PLAYER };
+
+    BOARD_CELL** test_board_cell = create_board_cell_data(test_cell_board);
+
+    STRICT_EXPECTED_CALL(game_board_get_board(IGNORED_ARG))
+        .SetReturn(test_board_cell);
+    STRICT_EXPECTED_CALL(game_board_play(IGNORED_ARG, 1, 1, CELL_X_PLAYER));
+
+    //act
+    computer_player_take_turn(player_handle, process_turn_complete, NULL);
+
+    //assert
+    CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+    delete_cell_data(test_board_cell);
 
     //cleanup
     computer_player_destroy(player_handle);
