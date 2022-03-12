@@ -296,10 +296,11 @@ void computer_player_take_turn(PLAYER_MGR_HANDLE handle, PLAYER_TURN_COMPLETE tu
     }
 }
 
-void computer_process_click(PLAYER_MGR_HANDLE player_handle, const POS_INFO* pos)
+void computer_process_click(PLAYER_MGR_HANDLE player_handle, const POS_INFO* pos, GAME_OUTCOME outcome)
 {
     (void)player_handle;
     (void)pos;
+    (void)outcome;
 }
 
 PLAYER_TYPE computer_player_get_type(void)

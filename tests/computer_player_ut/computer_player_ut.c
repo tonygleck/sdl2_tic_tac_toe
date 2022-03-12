@@ -246,16 +246,16 @@ CTEST_FUNCTION(computer_player_take_turn_success)
 CTEST_FUNCTION(computer_player_take_turn_stuck_issue_success)
 {
     //arrange
-    PLAYER_MGR_HANDLE player_handle = computer_player_create(g_board_info, CELL_X_PLAYER);
+    PLAYER_MGR_HANDLE player_handle = computer_player_create(g_board_info, CELL_0_PLAYER);
     umock_c_reset_all_calls();
 
-    BOARD_CELL test_cell_board[9] = { CELL_X_PLAYER, CELL_EMPTY, CELL_0_PLAYER, CELL_EMPTY, CELL_EMPTY, CELL_0_PLAYER, CELL_EMPTY, CELL_EMPTY, CELL_X_PLAYER };
+    BOARD_CELL test_cell_board[9] = { CELL_X_PLAYER, CELL_0_PLAYER, CELL_X_PLAYER, CELL_0_PLAYER, CELL_EMPTY, CELL_EMPTY, CELL_EMPTY, CELL_EMPTY, CELL_X_PLAYER };
 
     BOARD_CELL** test_board_cell = create_board_cell_data(test_cell_board);
 
     STRICT_EXPECTED_CALL(game_board_get_board(IGNORED_ARG))
         .SetReturn(test_board_cell);
-    STRICT_EXPECTED_CALL(game_board_play(IGNORED_ARG, 1, 1, CELL_X_PLAYER));
+    STRICT_EXPECTED_CALL(game_board_play(IGNORED_ARG, 1, 1, CELL_0_PLAYER));
 
     //act
     computer_player_take_turn(player_handle, process_turn_complete, NULL);

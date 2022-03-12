@@ -49,10 +49,10 @@ void manual_player_destroy(PLAYER_MGR_HANDLE handle)
     }
 }
 
-void manual_process_click(PLAYER_MGR_HANDLE handle, const POS_INFO* pos)
+void manual_process_click(PLAYER_MGR_HANDLE handle, const POS_INFO* pos, GAME_OUTCOME outcome)
 {
+    (void)pos;
     MANUAL_PLAYER* manual_player = (MANUAL_PLAYER*)handle;
-    GAME_OUTCOME outcome = game_board_click(manual_player->board_info, pos, manual_player->player_type);
     if (manual_player->turn_complete != NULL)
     {
         manual_player->turn_complete(outcome, manual_player->turn_complete_ctx);

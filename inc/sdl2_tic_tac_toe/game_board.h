@@ -51,13 +51,14 @@ typedef struct POS_INFO_TAG
 
 typedef void(*GAME_RESET_CLICK)(void* user_ctx);
 
-MOCKABLE_FUNCTION(, BOARD_INFO_HANDLE, game_board_create, uint16_t, width, uint16_t, length, RENDERER_INFO_HANDLE, renderer, GAME_RESET_CLICK, reset_click, void*, user_ctx);
+MOCKABLE_FUNCTION(, BOARD_INFO_HANDLE, game_board_create, uint16_t, width, uint16_t, length, RENDERER_INFO_HANDLE, renderer, void*, user_ctx);
 MOCKABLE_FUNCTION(, void, game_board_destroy, BOARD_INFO_HANDLE, handle);
 
 MOCKABLE_FUNCTION(, void, game_board_render, BOARD_INFO_HANDLE, handle, const SDL_Color*, color, BOARD_CELL, player_type);
-MOCKABLE_FUNCTION(, GAME_OUTCOME, game_board_click, BOARD_INFO_HANDLE, handle, const POS_INFO*, pos, BOARD_CELL, player_type);
 MOCKABLE_FUNCTION(, GAME_OUTCOME, game_board_play, BOARD_INFO_HANDLE, handle, uint8_t, row, uint8_t, col, BOARD_CELL, player_type);
 MOCKABLE_FUNCTION(, BOARD_CELL**, game_board_get_board, BOARD_INFO_HANDLE, handle);
+
+MOCKABLE_FUNCTION(, void, game_board_process_game_loop, BOARD_INFO_HANDLE, handle);
 
 #ifdef __cplusplus
 }
