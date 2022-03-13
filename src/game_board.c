@@ -1,6 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -17,13 +18,15 @@
 #define MAX_TURN_COUNT          ROW_COL_COUNT*ROW_COL_COUNT
 #define BOTTOM_BORDER           30
 #define WIN_LINE_THICKNESS      5
-#define RESET_BTN_WIDTH         60
-#define RESET_BTN_HEIGHT        20
+#define RESET_BTN_WIDTH         90
+#define STATUS_AREA_HEIGHT      20
+#define STATUS_AREA_WIDTH       20
 #define SPACER                  5
 
 #define min_value(first,second) (first < second ? first : second)
 #define get_player_cell_type(x) x == PLAYER_X ? CELL_X_PLAYER : CELL_0_PLAYER
 
+const SDL_Color BTN_TEXT_COLOR = { .r = 255, .g = 255, .b = 255, .a = 255 };
 const SDL_Color RESET_BTN_COLOR = { .r = 33, .g = 168, .b = 60, .a = 255 };
 const SDL_Color PLAYER_X_COLOR = { .r = 255, .g = 50, .b = 50, .a = 255 };
 const SDL_Color PLAYER_O_COLOR = { .r = 50, .g = 100, .b = 255, .a = 255 };
@@ -33,6 +36,11 @@ const SDL_Color TIE_COLOR = { .r = 100, .g = 100, .b = 100 };
 
 #define PLAYER_X        0
 #define PLAYER_O        1
+#define MAX_FMT_MSG_LEN 32
+
+static const char* PLAYER_TURN_MSG_FMT = "Player %s Turn";
+static const char* TIE_GAME_RESULT = "The game resulted in a tie";
+static const char* PLAYER_HAS_WON_FMT = "Player %s has won the game!!!";
 
 typedef struct PLAYER_INFO_TAG
 {
@@ -58,6 +66,22 @@ typedef struct BOARD_INFO_TAG
     uint8_t curr_player_index;
     bool accept_input;
 } BOARD_INFO;
+
+static void write_status_message(BOARD_INFO* board_info, const char* msg, ...)
+{
+    char formatted_msg[32];
+    va_list args;
+    va_start(args, msg);
+
+    (void)vsnprintf(formatted_msg, MAX_FMT_MSG_LEN, msg, args);
+    int xpos = SPACER;
+    int ypos = board_info->screen_height+SPACER;
+    int width = board_info->screen_width-RESET_BTN_WIDTH-SPACER;
+    int height = STATUS_AREA_HEIGHT;
+
+    render_draw_text(board_info->renderer, formatted_msg, &BTN_TEXT_COLOR, xpos, ypos, width, height);
+    va_end(args);
+}
 
 static GAME_OUTCOME evaluate_diagonal_win(BOARD_INFO* board_info, BOARD_CELL player_type)
 {
@@ -189,10 +213,14 @@ static void render_y_player(BOARD_INFO* board_info, uint8_t row, uint8_t col, co
 static void render_status_area(BOARD_INFO* board_info)
 {
     // Draw Reset button
-    render_set_draw_color(board_info->renderer, &RESET_BTN_COLOR);
-
-    render_draw_fill_rect(board_info->renderer, board_info->screen_width - (SPACER+RESET_BTN_WIDTH),
-        board_info->screen_height+SPACER, RESET_BTN_WIDTH, RESET_BTN_HEIGHT);
+    int xpos = board_info->screen_width - (SPACER+RESET_BTN_WIDTH);
+    int ypos = board_info->screen_height+SPACER;
+    int width = RESET_BTN_WIDTH;
+    int height = STATUS_AREA_HEIGHT;
+    //render_set_draw_color(board_info->renderer, &RESET_BTN_COLOR);
+    //render_draw_fill_rect(board_info->renderer, xpos, ypos, width, STATUS_AREA_HEIGHT);
+    // Add the reset button text
+    render_draw_bg_text(board_info->renderer, "reset", &BTN_TEXT_COLOR, &RESET_BTN_COLOR, xpos, ypos, width, height);
 }
 
 static void render_players(BOARD_INFO* board_info)
@@ -320,35 +348,6 @@ static void reset_game(BOARD_INFO* board_info)
     }
 }
 
-static int create_players(BOARD_INFO* board_info)
-{
-    int result;
-    board_info->player_list[PLAYER_X].player_interface = manual_get_interface_description();
-    board_info->player_list[PLAYER_X].player_type = CELL_X_PLAYER;
-    board_info->player_list[PLAYER_X].player = board_info->player_list[0].player_interface->player_create(board_info, CELL_X_PLAYER);
-    if (board_info->player_list[PLAYER_X].player == NULL)
-    {
-        result = __LINE__;
-    }
-    else
-    {
-        board_info->player_list[PLAYER_O].player_interface = computer_get_interface_description();
-        board_info->player_list[PLAYER_O].player_type = CELL_0_PLAYER;
-        board_info->player_list[PLAYER_O].player = board_info->player_list[PLAYER_O].player_interface->player_create(board_info, CELL_0_PLAYER);
-        if (board_info->player_list[PLAYER_O].player == NULL)
-        {
-            board_info->player_list[PLAYER_X].player_interface->player_destroy(board_info->player_list[0].player);
-            result = __LINE__;
-        }
-        else
-        {
-            board_info->curr_player_index = PLAYER_X;
-            result = 0;
-        }
-    }
-    return result;
-}
-
 static void render_game_win(void* user_ctx)
 {
     BOARD_INFO* board_info = (BOARD_INFO*)user_ctx;
@@ -372,6 +371,7 @@ static void process_turn_complete(GAME_OUTCOME outcome, void* user_ctx)
         // Change to the new player
         board_info->curr_player_index = (board_info->curr_player_index == PLAYER_X) ? PLAYER_O : PLAYER_X;
         current_player_type = board_info->player_list[board_info->curr_player_index].player_interface->player_get_type();
+        write_status_message(board_info, PLAYER_TURN_MSG_FMT, (board_info->curr_player_index == PLAYER_X) ? "O" : "X" );
         if (current_player_type == PLAYER_TYPE_COMPUTER)
         {
             SDL_Event event;
@@ -382,6 +382,14 @@ static void process_turn_complete(GAME_OUTCOME outcome, void* user_ctx)
             event.user.data2 = 0;
             SDL_PushEvent(&event);
         }
+    }
+    else if (outcome == OUTCOME_GAME_TIE)
+    {
+        write_status_message(board_info, TIE_GAME_RESULT);
+    }
+    else
+    {
+        write_status_message(board_info, PLAYER_HAS_WON_FMT, (board_info->curr_player_index == PLAYER_X) ? "O" : "X" );
     }
 }
 
@@ -437,6 +445,7 @@ static void game_board_window_event(void* user_ctx, SDL_Event* event, void* data
             }
             break;
         case SDL_USEREVENT:
+            // TODO: Need to be the same
             if (event->user.code == EVENT_COMPUTER_TURN)
             {
                 board_info->player_list[board_info->curr_player_index].player_interface->player_take_turn(board_info->player_list[board_info->curr_player_index].player, process_turn_complete, user_ctx);
@@ -445,8 +454,38 @@ static void game_board_window_event(void* user_ctx, SDL_Event* event, void* data
             {
                 board_info->player_list[board_info->curr_player_index].player_interface->player_take_turn(board_info->player_list[board_info->curr_player_index].player, process_turn_complete, board_info);
             }
+            write_status_message(board_info, PLAYER_TURN_MSG_FMT, (board_info->curr_player_index == PLAYER_X) ? "O" : "X" );
             break;
     }
+}
+
+static int create_players(BOARD_INFO* board_info)
+{
+    int result;
+    board_info->player_list[PLAYER_X].player_interface = manual_get_interface_description();
+    board_info->player_list[PLAYER_X].player_type = CELL_X_PLAYER;
+    board_info->player_list[PLAYER_X].player = board_info->player_list[0].player_interface->player_create(board_info, CELL_X_PLAYER);
+    if (board_info->player_list[PLAYER_X].player == NULL)
+    {
+        result = __LINE__;
+    }
+    else
+    {
+        board_info->player_list[PLAYER_O].player_interface = computer_get_interface_description();
+        board_info->player_list[PLAYER_O].player_type = CELL_0_PLAYER;
+        board_info->player_list[PLAYER_O].player = board_info->player_list[PLAYER_O].player_interface->player_create(board_info, CELL_0_PLAYER);
+        if (board_info->player_list[PLAYER_O].player == NULL)
+        {
+            board_info->player_list[PLAYER_X].player_interface->player_destroy(board_info->player_list[0].player);
+            result = __LINE__;
+        }
+        else
+        {
+            board_info->curr_player_index = PLAYER_X;
+            result = 0;
+        }
+    }
+    return result;
 }
 
 BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_height, RENDERER_INFO_HANDLE renderer, void* user_ctx)

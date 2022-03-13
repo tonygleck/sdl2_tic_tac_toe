@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 
 #include "sdl2_tic_tac_toe/sdl2_win.h"
 
@@ -22,6 +23,11 @@ int initialize_system(void)
         printf("Could not initialize SDL2: %s\n", SDL_GetError());
         result = __LINE__;
     }
+    else if (TTF_Init() != 0)
+    {
+        printf("Could not initialize SDL2 TTF_init: %s\n", TTF_GetError());
+        result = __LINE__;
+    }
     else
     {
         result = 0;
@@ -31,6 +37,7 @@ int initialize_system(void)
 
 void deinitialize_system(void)
 {
+    TTF_Quit();
     SDL_Quit();
 }
 

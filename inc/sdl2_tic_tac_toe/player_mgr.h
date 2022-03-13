@@ -56,12 +56,6 @@ typedef struct PLAYER_INTERFACE_DESC_TAG
     PLAYER_RESET player_reset;
 } PLAYER_INTERFACE_DESC;
 
-/*MOCKABLE_FUNCTION(, PLAYER_MGR_HANDLE, player_mgr_create_player, BOARD_INFO_HANDLE, board_info, BOARD_CELL, player_type);
-MOCKABLE_FUNCTION(, void, player_mgr_destroy_player, PLAYER_MGR_HANDLE, handle);
-
-MOCKABLE_FUNCTION(, CELL_LOCATION, player_mgr_take_turn, PLAYER_MGR_HANDLE, handle);
-MOCKABLE_FUNCTION(, CELL_LOCATION, player_mgr_process_click, PLAYER_MGR_HANDLE, handle, const POS_INFO*, pos);*/
-
 #ifdef __cplusplus
 }
 #endif

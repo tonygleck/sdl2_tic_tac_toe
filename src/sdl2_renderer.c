@@ -5,6 +5,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL2_gfxPrimitives.h>
+#include <SDL2/SDL_ttf.h>
 
 #include "sdl2_tic_tac_toe/sdl2_renderer.h"
 #include "sdl2_tic_tac_toe/sdl2_win.h"
@@ -13,10 +14,29 @@ typedef struct RENDERER_INFO_TAG
 {
     SDL_Renderer* renderer;
     SDL_WIN_HANDLE sdl_win;
+    TTF_Font* font;
 } RENDERER_INFO;
 
-RENDERER_INFO_HANDLE create_renderer(SDL_WIN_HANDLE sdl_win)
+static const char* FONT_FILENAME = "./res/new_roman.ttf";
+
+static int load_font(RENDERER_INFO* render_info)
 {
+    int result;
+    render_info->font = TTF_OpenFont(FONT_FILENAME, 24);
+    if (render_info->font == NULL)
+    {
+        result = __LINE__;
+    }
+    else
+    {
+        result = 0;
+    }
+    return result;
+}
+
+RENDERER_INFO_HANDLE create_renderer(SDL_WIN_HANDLE sdl_win, const char* exec_path)
+{
+    (void)exec_path;
     RENDERER_INFO* result = (RENDERER_INFO*)malloc(sizeof(RENDERER_INFO));
     if (result == NULL)
     {
@@ -34,6 +54,7 @@ RENDERER_INFO_HANDLE create_renderer(SDL_WIN_HANDLE sdl_win)
         }
         else
         {
+            load_font(result);
             result->sdl_win = sdl_win;
         }
     }
@@ -44,6 +65,7 @@ void destroy_renderer(RENDERER_INFO_HANDLE handle)
 {
     if (handle != NULL)
     {
+        TTF_CloseFont(handle->font);
         free(handle);
     }
 
@@ -110,6 +132,59 @@ void render_set_draw_color(RENDERER_INFO_HANDLE handle, const SDL_Color* color)
     }
 }
 
+void render_draw_bg_text(RENDERER_INFO_HANDLE handle, const char* text, const SDL_Color* font_color, const SDL_Color* bg_color, int x, int y, int width, int height)
+{
+    if (handle == NULL)
+    {
+        printf("Invalid parameter %p\n", handle);
+    }
+    else
+    {
+        SDL_Surface* text_surface = TTF_RenderText_Shaded(handle->font, text, *font_color, *bg_color);
+        if (text_surface == NULL)
+        {
+
+        }
+        else
+        {
+            // Create the texture
+            SDL_Texture* texture_msg = SDL_CreateTextureFromSurface(handle->renderer, text_surface);
+            SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
+
+            SDL_RenderCopy(handle->renderer, texture_msg, NULL, &rect);
+            SDL_FreeSurface(text_surface);
+            SDL_DestroyTexture(texture_msg);
+        }
+    }
+}
+
+void render_draw_text(RENDERER_INFO_HANDLE handle, const char* text, const SDL_Color* font_color, int x, int y, int width, int height)
+{
+    if (handle == NULL)
+    {
+        printf("Invalid parameter %p\n", handle);
+    }
+    else
+    {
+        SDL_Surface* text_surface = TTF_RenderText_Blended(handle->font, text, *font_color);
+        if (text_surface == NULL)
+        {
+
+        }
+        else
+        {
+            // Create the texture
+            SDL_Texture* texture_msg = SDL_CreateTextureFromSurface(handle->renderer, text_surface);
+            SDL_Rect src_rc = { .x = 0, .y = 0, .w = text_surface->w, .h = text_surface->h };
+            SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
+
+            SDL_RenderCopy(handle->renderer, texture_msg, &src_rc, &rect);
+            SDL_FreeSurface(text_surface);
+            SDL_DestroyTexture(texture_msg);
+        }
+    }
+}
+
 void render_clear(RENDERER_INFO_HANDLE handle)
 {
     if (handle == NULL)
@@ -120,7 +195,6 @@ void render_clear(RENDERER_INFO_HANDLE handle)
     {
         SDL_RenderClear(handle->renderer);
     }
-
 }
 
 void render_present(RENDERER_INFO_HANDLE handle)
