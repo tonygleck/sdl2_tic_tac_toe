@@ -3,4 +3,5 @@
 cmake_minimum_required(VERSION 3.2)
 
 add_unittest_directory(computer_player_ut)
-#add_unittest_directory(sdl2_tic_tac_toe_e2e)
+add_unittest_directory(game_board_ut)
+add_unittest_directory(manual_player_ut)

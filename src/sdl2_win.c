@@ -18,7 +18,7 @@ typedef struct SDL_WINDOW_INFO_TAG
 int initialize_system(void)
 {
     int result;
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER) != 0)
     {
         printf("Could not initialize SDL2: %s\n", SDL_GetError());
         result = __LINE__;

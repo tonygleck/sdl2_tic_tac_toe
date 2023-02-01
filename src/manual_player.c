@@ -6,6 +6,9 @@
 
 #include "lib-util-c/sys_debug_shim.h"
 
+#include "sdl2_tic_tac_toe/tic_tac_toe_const.h"
+
+#include "sdl2_tic_tac_toe/player_mgr.h"
 #include "sdl2_tic_tac_toe/game_board.h"
 #include "sdl2_tic_tac_toe/manual_player.h"
 
@@ -13,30 +16,39 @@ typedef struct MANUAL_PLAYER_TAG
 {
     BOARD_CELL player_type;
     BOARD_CELL opponent_type;
-    BOARD_INFO_HANDLE board_info;
+    //BOARD_INFO_HANDLE board_info;
     PLAYER_TURN_COMPLETE turn_complete;
     void* turn_complete_ctx;
 } MANUAL_PLAYER;
 
 static void reset_variables(MANUAL_PLAYER* manual_player)
 {
-    (void)manual_player;
+    manual_player->turn_complete = NULL;
+    manual_player->turn_complete_ctx = NULL;
 }
 
-PLAYER_MGR_HANDLE manual_player_create(BOARD_INFO_HANDLE board_info, BOARD_CELL player_type)
+PLAYER_MGR_HANDLE manual_player_create(GAME_INFO* game_info, BOARD_CELL player_type)
 {
-    MANUAL_PLAYER* result = (MANUAL_PLAYER*)malloc(sizeof(MANUAL_PLAYER));
-    if (result == NULL)
+    MANUAL_PLAYER* result;
+    if (game_info == NULL)
     {
-        printf("Failure allocating board item");
+        result = NULL;
     }
     else
     {
-        result->player_type = player_type;
-        result->opponent_type = player_type == CELL_X_PLAYER ? CELL_0_PLAYER : CELL_X_PLAYER;
-        result->board_info = board_info;
-        result->turn_complete = NULL;
-        result->turn_complete_ctx = NULL;
+        result = (MANUAL_PLAYER*)malloc(sizeof(MANUAL_PLAYER));
+        if (result == NULL)
+        {
+            printf("Failure allocating board item");
+        }
+        else
+        {
+            result->player_type = player_type;
+            result->opponent_type = player_type == CELL_X_PLAYER ? CELL_0_PLAYER : CELL_X_PLAYER;
+            //result->board_info = board_info;
+            result->turn_complete = NULL;
+            result->turn_complete_ctx = NULL;
+        }
     }
     return result;
 }
@@ -49,26 +61,46 @@ void manual_player_destroy(PLAYER_MGR_HANDLE handle)
     }
 }
 
-void manual_process_click(PLAYER_MGR_HANDLE handle, const POS_INFO* pos, GAME_OUTCOME outcome)
+void manual_process_click(PLAYER_MGR_HANDLE handle, const ROW_COL_INFO* rc_info)
 {
-    (void)pos;
-    MANUAL_PLAYER* manual_player = (MANUAL_PLAYER*)handle;
-    if (manual_player->turn_complete != NULL)
+    if (handle == NULL)
     {
-        manual_player->turn_complete(outcome, manual_player->turn_complete_ctx);
+        // Print Error
+    }
+    else
+    {
+        MANUAL_PLAYER* manual_player = (MANUAL_PLAYER*)handle;
+        if (manual_player->turn_complete != NULL)
+        {
+            manual_player->turn_complete(rc_info, manual_player->player_type, manual_player->turn_complete_ctx);
+        }
     }
 }
 
 void manual_player_take_turn(PLAYER_MGR_HANDLE handle, PLAYER_TURN_COMPLETE turn_complete, void* user_ctx)
 {
-    MANUAL_PLAYER* manual_player = (MANUAL_PLAYER*)handle;
-    manual_player->turn_complete = turn_complete;
-    manual_player->turn_complete_ctx = user_ctx;
+    if (handle == NULL)
+    {
+        // Print Error
+    }
+    else
+    {
+        MANUAL_PLAYER* manual_player = (MANUAL_PLAYER*)handle;
+        manual_player->turn_complete = turn_complete;
+        manual_player->turn_complete_ctx = user_ctx;
+    }
 }
 
-void manual_player_reset(PLAYER_MGR_HANDLE player_handle)
+void manual_player_reset(PLAYER_MGR_HANDLE handle)
 {
-    reset_variables((MANUAL_PLAYER*)player_handle);
+    if (handle == NULL)
+    {
+        // Print Error
+    }
+    else
+    {
+        reset_variables((MANUAL_PLAYER*)handle);
+    }
 }
 
 PLAYER_TYPE manual_player_get_type(void)

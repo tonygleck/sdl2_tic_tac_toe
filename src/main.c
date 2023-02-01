@@ -42,7 +42,7 @@ static int create_game_window(TIC_TAC_TOE_INFO* tic_info)
         }
         else
         {
-            if ((tic_info->board = game_board_create(SCREEN_WIDTH, SCREEN_HEIGHT, tic_info->renderer_info, tic_info)) == NULL)
+            if ((tic_info->board = game_board_create(SCREEN_WIDTH, SCREEN_HEIGHT, tic_info->renderer_info, manual_get_interface_description(), computer_get_interface_description())) == NULL)
             {
                 printf("failure create game board\n");
                 result = EXIT_FAILURE;
@@ -73,6 +73,7 @@ int main(int argc, char* argv[])
     (void)argv;
 
     TIC_TAC_TOE_INFO tic_info = {0};
+    srand((unsigned) time(NULL));
 
     if (initialize_system() != 0)
     {
