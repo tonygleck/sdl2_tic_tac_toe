@@ -11,7 +11,12 @@ extern "C" {
 #include <stddef.h>
 #endif /* __cplusplus */
 
+#include "macro_utils/macro_utils.h"
+
+#include "sdl2_tic_tac_toe/tic_tac_toe_const.h"
+
 #include "sdl2_tic_tac_toe/sdl2_renderer.h"
+#include "sdl2_tic_tac_toe/player_mgr.h"
 
 #include "umock_c/umock_c_prod.h"
 #ifdef __cplusplus
@@ -22,42 +27,12 @@ typedef struct BOARD_INFO_TAG* BOARD_INFO_HANDLE;
 
 #define ROW_COL_COUNT           3
 
-typedef enum GAME_OUTCOME_TAG
-{
-    OUTCOME_WIN_ROW_0,
-    OUTCOME_WIN_ROW_1,
-    OUTCOME_WIN_ROW_2,
-    OUTCOME_WIN_COL_0,
-    OUTCOME_WIN_COL_1,
-    OUTCOME_WIN_COL_2,
-    OUTCOME_WIN_DIAG_1,
-    OUTCOME_WIN_DIAG_2,
-    OUTCOME_GAME_TIE,
-    OUTCOME_NO_RESULT
-} GAME_OUTCOME;
-
-typedef enum BOARD_CELL_TAG
-{
-    CELL_EMPTY,
-    CELL_X_PLAYER,
-    CELL_0_PLAYER
-} BOARD_CELL;
-
-typedef struct POS_INFO_TAG
-{
-    int32_t x;
-    int32_t y;
-} POS_INFO;
-
 typedef void(*GAME_RESET_CLICK)(void* user_ctx);
 
-MOCKABLE_FUNCTION(, BOARD_INFO_HANDLE, game_board_create, uint16_t, width, uint16_t, length, RENDERER_INFO_HANDLE, renderer, void*, user_ctx);
+MOCKABLE_FUNCTION(, BOARD_INFO_HANDLE, game_board_create, uint16_t, width, uint16_t, length, RENDERER_INFO_HANDLE, renderer, const PLAYER_INTERFACE_DESC*, x_player, const PLAYER_INTERFACE_DESC*, y_player);
 MOCKABLE_FUNCTION(, void, game_board_destroy, BOARD_INFO_HANDLE, handle);
 
 MOCKABLE_FUNCTION(, void, game_board_render, BOARD_INFO_HANDLE, handle, const SDL_Color*, color, BOARD_CELL, player_type);
-MOCKABLE_FUNCTION(, GAME_OUTCOME, game_board_play, BOARD_INFO_HANDLE, handle, uint8_t, row, uint8_t, col, BOARD_CELL, player_type);
-MOCKABLE_FUNCTION(, BOARD_CELL**, game_board_get_board, BOARD_INFO_HANDLE, handle);
-
 MOCKABLE_FUNCTION(, void, game_board_process_game_loop, BOARD_INFO_HANDLE, handle);
 
 #ifdef __cplusplus

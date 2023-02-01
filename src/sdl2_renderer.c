@@ -209,8 +209,10 @@ void render_present(RENDERER_INFO_HANDLE handle)
     }
 }
 
-void render_process_game_loop(RENDERER_INFO_HANDLE handle, RENDER_WIN_FUNC render_win, void* render_ctx, PROCESS_WIN_EVENT_FUNC win_event, void* user_ctx)
+void render_process_game_loop(RENDERER_INFO_HANDLE handle, RENDER_WIN_FUNC render_win, void* render_ctx, PROCESS_WIN_EVENT_FUNC win_event, void* user_ctx, SDL_TimerCallback timer_cb, void* timer_ctx)
 {
+    (void)SDL_AddTimer(TIMER_CALLBACK_INTERVAL, timer_cb, timer_ctx);
+
     if (handle != NULL)
     {
         SDL_Event event;

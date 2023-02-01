@@ -30,9 +30,12 @@ static void my_mem_shim_free(void* ptr)
 #include "umock_c/umocktypes_stdint.h"
 
 #define ENABLE_MOCKS
-#include "sdl2_tic_tac_toe/game_board.h"
+#include "sdl2_tic_tac_toe/tic_tac_toe_const.h"
 #include "lib-util-c/sys_debug_shim.h"
 #include "lib-util-c/thread_mgr.h"
+
+MOCKABLE_FUNCTION(, void, process_turn_complete, const ROW_COL_INFO*, rc_info, BOARD_CELL, player_type, void*, user_ctx);
+
 #undef ENABLE_MOCKS
 
 #include "umock_c/umock_c_prod.h"
@@ -41,7 +44,7 @@ static void my_mem_shim_free(void* ptr)
 
 //TEST_DEFINE_ENUM_TYPE(CELL_LOCATION, CELL_LOCATION_VALUES)
 
-static BOARD_INFO_HANDLE g_board_info = (BOARD_INFO_HANDLE)0x2345;
+//static BOARD_INFO_HANDLE g_board_info = (BOARD_INFO_HANDLE)0x2345;
 
 #define WIN_DIR_HORIZ   "Horizontal"
 #define WIN_DIR_VERT    "Vertical"
@@ -92,12 +95,6 @@ static const struct
 
     //{ { CELL_EMPTY, CELL_EMPTY, CELL_EMPTY,  CELL_EMPTY,  CELL_EMPTY, CELL_EMPTY,  CELL_EMPTY,  CELL_EMPTY, CELL_EMPTY }, CELL_LOC_NA, {3, 3}, WIN_DIR_NONE }
 };
-
-static void process_turn_complete(GAME_OUTCOME outcome, void* user_ctx)
-{
-    (void)outcome;
-    (void)user_ctx;
-}
 
 static BOARD_CELL** create_board_cell_data(const BOARD_CELL cell_item[9])
 {
@@ -182,11 +179,12 @@ CTEST_FUNCTION(computer_player_create_succeed)
 {
     //arrange
     PLAYER_MGR_HANDLE player_handle;
+    GAME_INFO game_info = { .turn_count = 1, .game_outcome = OUTCOME_NO_RESULT, .game_board = NULL };
 
     STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
 
     //act
-    player_handle = computer_player_create(g_board_info, CELL_X_PLAYER);
+    player_handle = computer_player_create(&game_info, CELL_X_PLAYER);
 
     //assert
     CTEST_ASSERT_IS_NOT_NULL(player_handle);
@@ -199,7 +197,8 @@ CTEST_FUNCTION(computer_player_create_succeed)
 CTEST_FUNCTION(computer_player_destroy_succeed)
 {
     //arrange
-    PLAYER_MGR_HANDLE player_handle = computer_player_create(g_board_info, CELL_X_PLAYER);
+    GAME_INFO game_info = { .turn_count = 1, .game_outcome = OUTCOME_NO_RESULT, .game_board = NULL };
+    PLAYER_MGR_HANDLE player_handle = computer_player_create(&game_info, CELL_X_PLAYER);
     umock_c_reset_all_calls();
 
     STRICT_EXPECTED_CALL(free(IGNORED_ARG));
@@ -216,18 +215,14 @@ CTEST_FUNCTION(computer_player_destroy_succeed)
 CTEST_FUNCTION(computer_player_take_turn_success)
 {
     //arrange
-    PLAYER_MGR_HANDLE player_handle = computer_player_create(g_board_info, CELL_X_PLAYER);
-    umock_c_reset_all_calls();
-
     for (size_t index = 0; index < sizeof(g_test_cell_matrix)/sizeof(g_test_cell_matrix[0]); index++)
     {
+        BOARD_CELL** test_board_cell = create_board_cell_data(g_test_cell_matrix[index].cell_matrix);
+        GAME_INFO game_info = { .turn_count = 4, .game_outcome = OUTCOME_NO_RESULT, .game_board = test_board_cell };
+        PLAYER_MGR_HANDLE player_handle = computer_player_create(&game_info, CELL_X_PLAYER);
         umock_c_reset_all_calls();
 
-        BOARD_CELL** test_board_cell = create_board_cell_data(g_test_cell_matrix[index].cell_matrix);
-
-        STRICT_EXPECTED_CALL(game_board_get_board(IGNORED_ARG))
-            .SetReturn(test_board_cell);
-        STRICT_EXPECTED_CALL(game_board_play(IGNORED_ARG, g_test_cell_matrix[index].result_pos.row, g_test_cell_matrix[index].result_pos.col, CELL_X_PLAYER));
+        STRICT_EXPECTED_CALL(process_turn_complete(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
 
         //act
         computer_player_take_turn(player_handle, process_turn_complete, NULL);
@@ -237,25 +232,23 @@ CTEST_FUNCTION(computer_player_take_turn_success)
 
         delete_cell_data(test_board_cell);
         computer_player_reset(player_handle);
-    }
 
-    //cleanup
-    computer_player_destroy(player_handle);
+        //cleanup
+        computer_player_destroy(player_handle);
+    }
 }
 
 CTEST_FUNCTION(computer_player_take_turn_stuck_issue_success)
 {
-    //arrange
-    PLAYER_MGR_HANDLE player_handle = computer_player_create(g_board_info, CELL_0_PLAYER);
-    umock_c_reset_all_calls();
-
     BOARD_CELL test_cell_board[9] = { CELL_X_PLAYER, CELL_0_PLAYER, CELL_X_PLAYER, CELL_0_PLAYER, CELL_EMPTY, CELL_EMPTY, CELL_EMPTY, CELL_EMPTY, CELL_X_PLAYER };
-
     BOARD_CELL** test_board_cell = create_board_cell_data(test_cell_board);
 
-    STRICT_EXPECTED_CALL(game_board_get_board(IGNORED_ARG))
-        .SetReturn(test_board_cell);
-    STRICT_EXPECTED_CALL(game_board_play(IGNORED_ARG, 1, 1, CELL_0_PLAYER));
+    //arrange
+    GAME_INFO game_info = { .turn_count = 5, .game_outcome = OUTCOME_NO_RESULT, .game_board = test_board_cell };
+    PLAYER_MGR_HANDLE player_handle = computer_player_create(&game_info, CELL_X_PLAYER);
+    umock_c_reset_all_calls();
+
+    STRICT_EXPECTED_CALL(process_turn_complete(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
 
     //act
     computer_player_take_turn(player_handle, process_turn_complete, NULL);
@@ -267,6 +260,105 @@ CTEST_FUNCTION(computer_player_take_turn_stuck_issue_success)
 
     //cleanup
     computer_player_destroy(player_handle);
+}
+
+CTEST_FUNCTION(computer_process_click_handle_NULL_failure)
+{
+    //arrange
+    ROW_COL_INFO rc_info = { 0, 0 };
+    POS_INFO pos = {0, 0};
+
+    //act
+    computer_process_click(NULL, &rc_info);
+
+    //assert
+    CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+    //cleanup
+}
+
+CTEST_FUNCTION(computer_process_click_success)
+{
+    //arrange
+    ROW_COL_INFO rc_info = { 0, 0 };
+    GAME_INFO game_info = { .turn_count = 1, .game_outcome = OUTCOME_NO_RESULT, .game_board = NULL };
+    PLAYER_MGR_HANDLE player_handle = computer_player_create(&game_info, CELL_0_PLAYER);
+    umock_c_reset_all_calls();
+
+    //act
+    computer_process_click(player_handle, &rc_info);
+
+    //assert
+    CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+    //cleanup
+    computer_player_destroy(player_handle);
+}
+
+CTEST_FUNCTION(computer_player_reset_handle_NULL_success)
+{
+    //arrange
+
+    //act
+    computer_player_reset(NULL);
+
+    //assert
+    CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+    //cleanup
+}
+
+CTEST_FUNCTION(computer_player_reset_success)
+{
+    //arrange
+    GAME_INFO game_info = { .turn_count = 1, .game_outcome = OUTCOME_NO_RESULT, .game_board = NULL };
+    PLAYER_MGR_HANDLE player_handle = computer_player_create(&game_info, CELL_0_PLAYER);
+    umock_c_reset_all_calls();
+
+    GAME_OUTCOME outcome = OUTCOME_NO_RESULT;
+
+    //act
+    computer_player_reset(player_handle);
+
+    //assert
+    CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+    //cleanup
+    computer_player_destroy(player_handle);
+}
+
+CTEST_FUNCTION(computer_player_get_type_success)
+{
+    //arrange
+
+    //act
+    PLAYER_TYPE player_type = computer_player_get_type();
+
+    //assert
+    CTEST_ASSERT_ARE_EQUAL(int, PLAYER_TYPE_COMPUTER, player_type);
+    CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+    //cleanup
+}
+
+CTEST_FUNCTION(computer_get_interface_description_success)
+{
+    //arrange
+
+    //act
+    const PLAYER_INTERFACE_DESC* interface_desc = computer_get_interface_description();
+
+    //assert
+    CTEST_ASSERT_IS_NOT_NULL(interface_desc);
+    CTEST_ASSERT_IS_NOT_NULL(interface_desc->player_create);
+    CTEST_ASSERT_IS_NOT_NULL(interface_desc->player_destroy);
+    CTEST_ASSERT_IS_NOT_NULL(interface_desc->player_take_turn);
+    CTEST_ASSERT_IS_NOT_NULL(interface_desc->player_process_click);
+    CTEST_ASSERT_IS_NOT_NULL(interface_desc->player_get_type);
+    CTEST_ASSERT_IS_NOT_NULL(interface_desc->player_reset);
+    CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+    //cleanup
 }
 
 CTEST_END_TEST_SUITE(computer_player_ut)

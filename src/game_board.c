@@ -6,14 +6,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <signal.h>
+
 #include <SDL2/SDL.h>
+
+#include "sdl2_tic_tac_toe/tic_tac_toe_const.h"
 
 #include "sdl2_tic_tac_toe/game_board.h"
 #include "sdl2_tic_tac_toe/sdl2_renderer.h"
 
 #include "sdl2_tic_tac_toe/player_mgr.h"
-#include "sdl2_tic_tac_toe/manual_player.h"
-#include "sdl2_tic_tac_toe/computer_player.h"
 
 #define MAX_TURN_COUNT          ROW_COL_COUNT*ROW_COL_COUNT
 #define BOTTOM_BORDER           30
@@ -51,18 +53,21 @@ typedef struct PLAYER_INFO_TAG
 
 typedef struct BOARD_INFO_TAG
 {
-    BOARD_CELL** game_board;
+    // Screen variable
     uint16_t screen_width;
     uint16_t screen_height;
     uint16_t cell_width;
     uint16_t cell_height;
+
+    GAME_INFO game_info;
+    BOARD_CELL** game_board;
+    //uint8_t turn_count;
+
     RENDERER_INFO_HANDLE renderer;
-    uint8_t turn_count;
     GAME_OUTCOME game_outcome;
     GAME_RESET_CLICK reset_click;
-    void* reset_user_ctx;
 
-    PLAYER_INFO player_list[2];
+    PLAYER_INFO player_list[NUM_OF_PLAYERS];
     uint8_t curr_player_index;
     bool accept_input;
 } BOARD_INFO;
@@ -176,7 +181,7 @@ static GAME_OUTCOME evaluate_board_state(BOARD_INFO* board_info, BOARD_CELL play
     }
     else
     {
-        if (board_info->turn_count >= MAX_TURN_COUNT)
+        if (board_info->game_info.turn_count >= MAX_TURN_COUNT)
         {
             result = OUTCOME_GAME_TIE;
         }
@@ -319,13 +324,14 @@ static GAME_OUTCOME mark_board_play(BOARD_INFO* board_info, int row, int col, BO
     {
         if (board_info->game_board[row][col] == CELL_EMPTY)
         {
-            board_info->turn_count++;
+            board_info->game_info.turn_count++;
             board_info->game_board[row][col] = player_type;
             board_info->game_outcome = evaluate_board_state(board_info, player_type);
         }
         else
         {
             // Add user error statment
+            raise(SIGTRAP);
         }
     }
     return board_info->game_outcome;
@@ -333,7 +339,7 @@ static GAME_OUTCOME mark_board_play(BOARD_INFO* board_info, int row, int col, BO
 
 static void reset_game(BOARD_INFO* board_info)
 {
-    board_info->turn_count = 0;
+    board_info->game_info.turn_count = 0;
     board_info->game_outcome = OUTCOME_NO_RESULT;
     for (size_t index = 0; index < ROW_COL_COUNT; index++)
     {
@@ -346,6 +352,8 @@ static void reset_game(BOARD_INFO* board_info)
     {
         board_info->player_list[index].player_interface->player_reset(board_info->player_list[index].player);
     }
+    board_info->curr_player_index = 0;
+    board_info->accept_input = true;
 }
 
 static void render_game_win(void* user_ctx)
@@ -360,30 +368,19 @@ static void render_game_win(void* user_ctx)
     }
 }
 
-static void process_turn_complete(GAME_OUTCOME outcome, void* user_ctx)
+static void process_turn_complete(const ROW_COL_INFO* rc_info, BOARD_CELL player_type, void* user_ctx)
 {
     BOARD_INFO* board_info = (BOARD_INFO*)user_ctx;
-    board_info->accept_input = true;
-    PLAYER_TYPE current_player_type;
 
-    if (outcome == OUTCOME_NO_RESULT)
+    (void)mark_board_play(board_info, rc_info->row, rc_info->col, player_type);
+
+    if (board_info->game_outcome == OUTCOME_NO_RESULT)
     {
         // Change to the new player
         board_info->curr_player_index = (board_info->curr_player_index == PLAYER_X) ? PLAYER_O : PLAYER_X;
-        current_player_type = board_info->player_list[board_info->curr_player_index].player_interface->player_get_type();
         write_status_message(board_info, PLAYER_TURN_MSG_FMT, (board_info->curr_player_index == PLAYER_X) ? "O" : "X" );
-        if (current_player_type == PLAYER_TYPE_COMPUTER)
-        {
-            SDL_Event event;
-            SDL_memset(&event, 0, sizeof(event));
-            event.type = SDL_USEREVENT;
-            event.user.code = EVENT_COMPUTER_TURN;
-            event.user.data1 = user_ctx;
-            event.user.data2 = 0;
-            SDL_PushEvent(&event);
-        }
     }
-    else if (outcome == OUTCOME_GAME_TIE)
+    else if (board_info->game_outcome == OUTCOME_GAME_TIE)
     {
         write_status_message(board_info, TIE_GAME_RESULT);
     }
@@ -411,11 +408,31 @@ static void mouse_click(BOARD_INFO* board_info, const POS_INFO* pos)
     }
     else
     {
-        uint8_t row = (uint8_t)(pos->y / board_info->cell_height);
-        uint8_t col = (uint8_t)(pos->x / board_info->cell_width);
-        board_info->game_outcome = mark_board_play(board_info, row, col, get_player_cell_type(board_info->curr_player_index));
-        board_info->player_list[board_info->curr_player_index].player_interface->player_process_click(board_info->player_list[board_info->curr_player_index].player, pos, board_info->game_outcome);
+        ROW_COL_INFO rc_info;
+        rc_info.row = (uint8_t)(pos->y / board_info->cell_height);
+        rc_info.col = (uint8_t)(pos->x / board_info->cell_width);
+        //board_info->game_outcome = mark_board_play(board_info, row, col, get_player_cell_type(board_info->curr_player_index));
+        board_info->player_list[board_info->curr_player_index].player_interface->player_process_click(board_info->player_list[board_info->curr_player_index].player, &rc_info);
     }
+}
+
+static uint32_t game_board_timer_callback(uint32_t interval, void* user_ctx)
+{
+    (void)interval;
+    BOARD_INFO* board_info = (BOARD_INFO*)user_ctx;
+    if (!board_info->accept_input)
+    {
+        SDL_Event event;
+        memset(&event, 0, sizeof(event));
+        event.type = SDL_USEREVENT;
+        event.user.code = EVENT_COMPUTER_TURN;
+        event.user.data1 = user_ctx;
+        event.user.data2 = 0;
+        SDL_PushEvent(&event);
+        board_info->accept_input = true;
+    }
+    return TIMER_CALLBACK_INTERVAL;
+
 }
 
 static void game_board_window_event(void* user_ctx, SDL_Event* event, void* data)
@@ -459,21 +476,21 @@ static void game_board_window_event(void* user_ctx, SDL_Event* event, void* data
     }
 }
 
-static int create_players(BOARD_INFO* board_info)
+static int create_players(BOARD_INFO* board_info, const PLAYER_INTERFACE_DESC* x_player, const PLAYER_INTERFACE_DESC* y_player)
 {
     int result;
-    board_info->player_list[PLAYER_X].player_interface = manual_get_interface_description();
+    board_info->player_list[PLAYER_X].player_interface = x_player;
     board_info->player_list[PLAYER_X].player_type = CELL_X_PLAYER;
-    board_info->player_list[PLAYER_X].player = board_info->player_list[0].player_interface->player_create(board_info, CELL_X_PLAYER);
+    board_info->player_list[PLAYER_X].player = board_info->player_list[0].player_interface->player_create(&board_info->game_info, CELL_X_PLAYER);
     if (board_info->player_list[PLAYER_X].player == NULL)
     {
         result = __LINE__;
     }
     else
     {
-        board_info->player_list[PLAYER_O].player_interface = computer_get_interface_description();
+        board_info->player_list[PLAYER_O].player_interface = y_player;
         board_info->player_list[PLAYER_O].player_type = CELL_0_PLAYER;
-        board_info->player_list[PLAYER_O].player = board_info->player_list[PLAYER_O].player_interface->player_create(board_info, CELL_0_PLAYER);
+        board_info->player_list[PLAYER_O].player = board_info->player_list[PLAYER_O].player_interface->player_create(&board_info->game_info, CELL_0_PLAYER);
         if (board_info->player_list[PLAYER_O].player == NULL)
         {
             board_info->player_list[PLAYER_X].player_interface->player_destroy(board_info->player_list[0].player);
@@ -488,24 +505,24 @@ static int create_players(BOARD_INFO* board_info)
     return result;
 }
 
-BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_height, RENDERER_INFO_HANDLE renderer, void* user_ctx)
+BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_height, RENDERER_INFO_HANDLE renderer, const PLAYER_INTERFACE_DESC* x_player, const PLAYER_INTERFACE_DESC* y_player)
 {
-    BOARD_INFO* result = (BOARD_INFO*)malloc(sizeof(BOARD_INFO));
-    if (result == NULL)
+    BOARD_INFO* result;
+    if (renderer == NULL || x_player == NULL || y_player == NULL)
     {
-        printf("Failure allocating board item");
+        result = NULL;
     }
     else
     {
-        //size_t alloc_len = ROW_COL_COUNT * sizeof(BOARD_CELL*) + sizeof(BOARD_CELL)*ROW_COL_COUNT*ROW_COL_COUNT;
-        if ((result->game_board = malloc(ROW_COL_COUNT * sizeof(BOARD_CELL*))) == NULL)
+        result = (BOARD_INFO*)malloc(sizeof(BOARD_INFO));
+        if (result == NULL)
         {
-            free(result);
-            result = NULL;
+            printf("Failure allocating board item");
         }
         else
         {
-            if (create_players(result) != 0)
+            //size_t alloc_len = ROW_COL_COUNT * sizeof(BOARD_CELL*) + sizeof(BOARD_CELL)*ROW_COL_COUNT*ROW_COL_COUNT;
+            if ((result->game_board = malloc(ROW_COL_COUNT * sizeof(BOARD_CELL*))) == NULL)
             {
                 free(result);
                 result = NULL;
@@ -523,14 +540,25 @@ BOARD_INFO_HANDLE game_board_create(uint16_t screen_width, uint16_t screen_heigh
                 }
                 if (result != NULL)
                 {
-                    result->screen_width = screen_width;
-                    result->screen_height = screen_height - BOTTOM_BORDER;
-                    result->cell_width = result->screen_width / ROW_COL_COUNT;
-                    result->cell_height = result->screen_height / ROW_COL_COUNT;
-                    result->renderer = renderer;
-                    reset_game(result);
-                    result->reset_user_ctx = user_ctx;
-                    result->accept_input = true;
+                    result->game_info.turn_count = 0;
+                    result->game_info.game_outcome = OUTCOME_NO_RESULT;
+                    result->game_info.game_board = result->game_board;
+
+                    if (create_players(result, x_player, y_player) != 0)
+                    {
+                        free(result);
+                        result = NULL;
+                    }
+                    else
+                    {
+                        result->screen_width = screen_width;
+                        result->screen_height = screen_height - BOTTOM_BORDER;
+                        result->cell_width = result->screen_width / ROW_COL_COUNT;
+                        result->cell_height = result->screen_height / ROW_COL_COUNT;
+                        result->renderer = renderer;
+                        reset_game(result);
+                        result->accept_input = true;
+                    }
                 }
             }
         }
@@ -566,34 +594,15 @@ void game_board_render(BOARD_INFO_HANDLE handle, const SDL_Color* color, BOARD_C
     }
 }
 
-GAME_OUTCOME game_board_play(BOARD_INFO_HANDLE handle, uint8_t row, uint8_t col, BOARD_CELL player_type)
-{
-    GAME_OUTCOME result;
-    if (handle != NULL)
-    {
-        result = mark_board_play(handle, row, col, player_type);
-    }
-    else
-    {
-        result = OUTCOME_NO_RESULT;
-    }
-    return result;
-}
-
-BOARD_CELL** game_board_get_board(BOARD_INFO_HANDLE handle)
-{
-    return handle->game_board;
-}
-
 void game_board_process_game_loop(BOARD_INFO_HANDLE handle)
 {
     SDL_Event event;
-    SDL_memset(&event, 0, sizeof(event));
+    memset(&event, 0, sizeof(event));
     event.type = SDL_USEREVENT;
     event.user.code = BEGIN_COMPUTER_TURN;
     event.user.data1 = handle;
     event.user.data2 = 0;
     SDL_PushEvent(&event);
 
-    render_process_game_loop(handle->renderer, render_game_win, handle, game_board_window_event, handle);
+    render_process_game_loop(handle->renderer, render_game_win, handle, game_board_window_event, handle, game_board_timer_callback, handle);
 }

@@ -3,11 +3,14 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <signal.h>
 
 #include "lib-util-c/sys_debug_shim.h"
-#include "lib-util-c/thread_mgr.h"
 
-#include "sdl2_tic_tac_toe/game_board.h"
+#include "sdl2_tic_tac_toe/tic_tac_toe_const.h"
+
+#include "sdl2_tic_tac_toe/player_mgr.h"
+//#include "sdl2_tic_tac_toe/game_board.h"
 #include "sdl2_tic_tac_toe/computer_player.h"
 
 #define TURN_DELAY      1000
@@ -18,9 +21,15 @@ typedef struct COMPUTER_PLAYER_TAG
     uint8_t play_record[ROW_COL_COUNT*ROW_COL_COUNT];
     BOARD_CELL player_type;
     BOARD_CELL opponent_type;
-    BOARD_INFO_HANDLE board_info;
+    GAME_INFO* game_info;
     PLAYER_TURN_COMPLETE turn_complete;
+    ROW_COL_INFO next_move;
 } COMPUTER_PLAYER;
+
+static bool is_random_num_even(void)
+{
+    return ((rand() % 2) == 0);
+}
 
 static ROW_COL_INFO convert_location_row_col(CELL_LOCATION cell_loc)
 {
@@ -206,20 +215,120 @@ static CELL_LOCATION check_opponent_win(COMPUTER_PLAYER* player, BOARD_CELL** bo
     return result;
 }
 
-static CELL_LOCATION determine_next_move(COMPUTER_PLAYER* player, BOARD_CELL** board)
+static CELL_LOCATION determine_next_move(COMPUTER_PLAYER* player, GAME_INFO* game_info)
 {
-    (void)player;
     CELL_LOCATION result = CELL_LOC_NA;
-    for (uint8_t row = 0; row < ROW_COL_COUNT && result == CELL_LOC_NA; row++)
+    BOARD_CELL** board = game_info->game_board;
+    if (game_info->turn_count == 0)
     {
-        for (uint8_t col = 0; col < ROW_COL_COUNT && result == CELL_LOC_NA; col++)
+        // If no one has moved
+        if (is_random_num_even())
         {
-            // Test only spaces occupied by our player
-            if (board[row][col] == CELL_EMPTY) //player->player_type)
+            result = convert_row_col_to_location(0, 0);
+            player->next_move.row = 2;
+            player->next_move.col = 0;
+        }
+        else
+        {
+            result = convert_row_col_to_location(2, 2);
+            player->next_move.row = 0;
+            player->next_move.col = 2;
+        }
+    }
+    else if (game_info->turn_count == 1)
+    {
+        if (board[0][0] == player->opponent_type)
+        {
+            result = convert_row_col_to_location(1, 0);
+            player->next_move.row = 1;
+            player->next_move.col = 1;
+        }
+        else
+        {
+            if (board[1][1] == CELL_EMPTY)
             {
-                result = convert_row_col_to_location(row, col);
-                break;
+                result = convert_row_col_to_location(1, 1);
+                player->next_move.row = 1;
+                player->next_move.col = 0;
             }
+            else
+            {
+                result = convert_row_col_to_location(0, 0);
+                player->next_move.row = 2;
+                player->next_move.col = 2;
+            }
+        }
+    }
+    else
+    {
+        if (game_info->turn_count == 2 && (player->next_move.row != ROW_COL_COUNT && player->next_move.col != ROW_COL_COUNT) &&
+            (board[player->next_move.row][player->next_move.col] == CELL_EMPTY) )
+        {
+            result = convert_row_col_to_location(player->next_move.row, player->next_move.col);
+            if (player->next_move.row == 0 && player->next_move.col == 2)
+            {
+                if (board[2][0] == CELL_EMPTY)
+                {
+                    player->next_move.row = 2;
+                    player->next_move.col = 0;
+                }
+                else
+                {
+                    player->next_move.row = 2;
+                    player->next_move.col = 2;
+                }
+            }
+            else
+            {
+                if (board[0][2] == CELL_EMPTY)
+                {
+                    player->next_move.row = 0;
+                    player->next_move.col = 2;
+                }
+                else
+                {
+                    player->next_move.row = 2;
+                    player->next_move.col = 2;
+                }
+            }
+        }
+        else if ((player->next_move.row != ROW_COL_COUNT && player->next_move.col != ROW_COL_COUNT) &&
+            (board[player->next_move.row][player->next_move.col] == CELL_EMPTY))
+        {
+            result = convert_row_col_to_location(player->next_move.row, player->next_move.col);
+            player->next_move.row = player->next_move.col = ROW_COL_COUNT;
+        }
+        else
+        {
+            do
+            {
+                // Todo: need to do something about this
+                int row = rand() % (ROW_COL_COUNT-1);
+                int col = rand() % (ROW_COL_COUNT-1);
+                if (board[row][col] == CELL_EMPTY)
+                {
+                    result = convert_row_col_to_location(row, col);
+                    break;
+                }
+                else
+                {
+                    // Get the next empty cell
+                    for (uint8_t cell_row = 0; cell_row < ROW_COL_COUNT; cell_row++)
+                    {
+                        for (uint8_t cell_col = 0; cell_col < ROW_COL_COUNT; cell_col++)
+                        {
+                            // Test only spaces occupied by our player
+                            if (board[cell_row][cell_col] == CELL_EMPTY)
+                            {
+                                result = convert_row_col_to_location(cell_row, cell_col);
+                                cell_row = ROW_COL_COUNT;
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            } while (1);
         }
     }
     return result;
@@ -230,9 +339,10 @@ static void reset_variables(COMPUTER_PLAYER* player)
     player->play_count = 0;
     memset(player->play_record, 0, sizeof(int8_t)*(ROW_COL_COUNT*ROW_COL_COUNT));
     player->turn_complete = 0;
+    player->next_move.row = player->next_move.col = ROW_COL_COUNT;
 }
 
-PLAYER_MGR_HANDLE computer_player_create(BOARD_INFO_HANDLE board_info, BOARD_CELL player_type)
+PLAYER_MGR_HANDLE computer_player_create(GAME_INFO* game_info, BOARD_CELL player_type)
 {
     COMPUTER_PLAYER* result = (COMPUTER_PLAYER*)malloc(sizeof(COMPUTER_PLAYER));
     if (result == NULL)
@@ -243,7 +353,7 @@ PLAYER_MGR_HANDLE computer_player_create(BOARD_INFO_HANDLE board_info, BOARD_CEL
     {
         result->player_type = player_type;
         result->opponent_type = player_type == CELL_X_PLAYER ? CELL_0_PLAYER : CELL_X_PLAYER;
-        result->board_info = board_info;
+        result->game_info = game_info;
         reset_variables(result);
     }
     return result;
@@ -265,42 +375,37 @@ void computer_player_take_turn(PLAYER_MGR_HANDLE handle, PLAYER_TURN_COMPLETE tu
         COMPUTER_PLAYER* player = (COMPUTER_PLAYER*)handle;
         player->turn_complete = turn_complete;
 
-        //thread_mgr_sleep(TURN_DELAY);
-
-        BOARD_CELL** board = game_board_get_board(player->board_info);
         // See if we can win
         // Check the diagonal
-        cell_loc = check_win_scenarios(player, board);
+        cell_loc = check_win_scenarios(player, player->game_info->game_board);
         if (cell_loc == CELL_LOC_NA)
         {
             // Block opponent winning
-            cell_loc = check_opponent_win(player, board);
+            cell_loc = check_opponent_win(player, player->game_info->game_board);
             if (cell_loc == CELL_LOC_NA)
             {
-                cell_loc = determine_next_move(player, board);
+                cell_loc = determine_next_move(player, player->game_info);
             }
         }
-        GAME_OUTCOME outcome;
+        ROW_COL_INFO rc_info = { 0, 0 };
         if (cell_loc != CELL_LOC_NA)
         {
-            ROW_COL_INFO rc = convert_location_row_col(cell_loc);
-            outcome = game_board_play(player->board_info, rc.row, rc.col, player->player_type);
-            player->play_record[player->play_count++] = rc.row + rc.col;
+            rc_info = convert_location_row_col(cell_loc);
+            player->play_record[player->play_count++] = rc_info.row + rc_info.col;
         }
         else
         {
-            outcome = OUTCOME_NO_RESULT;
+            raise(SIGTRAP);
         }
 
-        player->turn_complete(outcome, user_ctx);
+        player->turn_complete(&rc_info, player->player_type, user_ctx);
     }
 }
 
-void computer_process_click(PLAYER_MGR_HANDLE player_handle, const POS_INFO* pos, GAME_OUTCOME outcome)
+void computer_process_click(PLAYER_MGR_HANDLE player_handle, const ROW_COL_INFO* rc_info)
 {
     (void)player_handle;
-    (void)pos;
-    (void)outcome;
+    (void)rc_info;
 }
 
 PLAYER_TYPE computer_player_get_type(void)
