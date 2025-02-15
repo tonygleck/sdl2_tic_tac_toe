@@ -262,6 +262,30 @@ CTEST_FUNCTION(computer_player_take_turn_stuck_issue_success)
     computer_player_destroy(player_handle);
 }
 
+CTEST_FUNCTION(computer_player_take_incorrect_play)
+{
+    BOARD_CELL test_cell_board[9] = { CELL_X_PLAYER, CELL_0_PLAYER, CELL_X_PLAYER, CELL_0_PLAYER, CELL_EMPTY, CELL_EMPTY, CELL_EMPTY, CELL_EMPTY, CELL_X_PLAYER };
+    BOARD_CELL** test_board_cell = create_board_cell_data(test_cell_board);
+
+    //arrange
+    GAME_INFO game_info = { .turn_count = 5, .game_outcome = OUTCOME_NO_RESULT, .game_board = test_board_cell };
+    PLAYER_MGR_HANDLE player_handle = computer_player_create(&game_info, CELL_0_PLAYER);
+    umock_c_reset_all_calls();
+
+    STRICT_EXPECTED_CALL(process_turn_complete(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+
+    //act
+    computer_player_take_turn(player_handle, process_turn_complete, NULL);
+
+    //assert
+    CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+    delete_cell_data(test_board_cell);
+
+    //cleanup
+    computer_player_destroy(player_handle);
+}
+
 CTEST_FUNCTION(computer_process_click_handle_NULL_failure)
 {
     //arrange

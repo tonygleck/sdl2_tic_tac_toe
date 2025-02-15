@@ -181,7 +181,7 @@ static CELL_LOCATION check_col_row_scenarios(BOARD_CELL** board, uint8_t row, ui
     return result;
 }
 
-static CELL_LOCATION check_win_scenarios(COMPUTER_PLAYER* player, BOARD_CELL** board)
+static CELL_LOCATION check_win_scenarios(BOARD_CELL player_type, BOARD_CELL** board)
 {
     CELL_LOCATION result = CELL_LOC_NA;
     for (uint8_t row = 0; row < ROW_COL_COUNT && result == CELL_LOC_NA; row++)
@@ -189,26 +189,9 @@ static CELL_LOCATION check_win_scenarios(COMPUTER_PLAYER* player, BOARD_CELL** b
         for (uint8_t col = 0; col < ROW_COL_COUNT && result == CELL_LOC_NA; col++)
         {
             // Test only spaces occupied by our player
-            if (board[row][col] == player->player_type)
+            if (board[row][col] == player_type)
             {
-                result = check_col_row_scenarios(board, row, col, player->player_type);
-            }
-        }
-    }
-    return result;
-}
-
-static CELL_LOCATION check_opponent_win(COMPUTER_PLAYER* player, BOARD_CELL** board)
-{
-    CELL_LOCATION result = CELL_LOC_NA;
-    for (uint8_t row = 0; row < ROW_COL_COUNT && result == CELL_LOC_NA; row++)
-    {
-        for (uint8_t col = 0; col < ROW_COL_COUNT && result == CELL_LOC_NA; col++)
-        {
-            // Test only spaces occupied by our player
-            if (board[row][col] == player->opponent_type)
-            {
-                result = check_col_row_scenarios(board, row, col, player->opponent_type);
+                result = check_col_row_scenarios(board, row, col, player_type);
             }
         }
     }
@@ -377,11 +360,11 @@ void computer_player_take_turn(PLAYER_MGR_HANDLE handle, PLAYER_TURN_COMPLETE tu
 
         // See if we can win
         // Check the diagonal
-        cell_loc = check_win_scenarios(player, player->game_info->game_board);
+        cell_loc = check_win_scenarios(player->player_type, player->game_info->game_board);
         if (cell_loc == CELL_LOC_NA)
         {
             // Block opponent winning
-            cell_loc = check_opponent_win(player, player->game_info->game_board);
+            cell_loc = check_win_scenarios(player->opponent_type, player->game_info->game_board);
             if (cell_loc == CELL_LOC_NA)
             {
                 cell_loc = determine_next_move(player, player->game_info);
